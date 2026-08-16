@@ -34,11 +34,12 @@ Depuis `htdocs/custom/agence` sous PowerShell :
 .\test\run_quality_gate.ps1
 ```
 
-Le quality gate contrôle la syntaxe PHP/JavaScript, l'installation du module, les parcours opérationnels, les régressions de sécurité et la cohérence du schéma. Les tests qui créent des données travaillent dans une transaction et les annulent en fin d'exécution.
+Le quality gate contrôle la syntaxe PHP/JavaScript, l'installation du module, les cycles métier complets, une concurrence avec deux processus simultanés, l'isolation entre deux entités, les régressions de sécurité et la cohérence du schéma. Les tests transactionnels annulent leurs données ; les tests multiprocessus détruisent leurs fixtures après exécution.
 
 ## Documentation
 
 - `doc/Manuel_utilisation.md`
 - `doc/Documentation_technique.md`
 - `doc/Plan_tests_recette.md`
+- `doc/QUALIFICATION_INDUSTRIELLE.md`
 - `CHANGELOG.md`

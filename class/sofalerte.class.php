@@ -20,6 +20,7 @@ class SofAlerte extends SofCommonObject
 
 	public $sof_fields = array(
 		'ref' => array('type' => 'varchar(64)', 'label' => 'Ref', 'index' => 1),
+		'dedup_key' => array('type' => 'varchar(255)', 'label' => 'DeduplicationKey'),
 		'alert_type' => array('type' => 'varchar(128)', 'label' => 'AlertType', 'notnull' => 1, 'index' => 1),
 		'severity' => array('type' => 'varchar(64)', 'label' => 'Severity'),
 		'fk_agence' => array('type' => 'integer:SofAgence:custom/agence/class/sofagence.class.php', 'label' => 'Agency', 'index' => 1),
@@ -100,6 +101,7 @@ class SofAlerte extends SofCommonObject
 	private function createIfMissing($type, $severity, $objectType, $objectId, $message, $fkAgence = 0, $fkCaisse = 0, $fkSession = 0)
 	{
 		global $conf, $user;
+		$dedupKey = substr(strtolower((string) $type).':'.strtolower((string) $objectType).':'.((int) $objectId), 0, 255);
 
 		$sql = 'SELECT rowid FROM '.$this->db->prefix().$this->table_element;
 		$sql .= ' WHERE entity = '.((int) $conf->entity)." AND alert_type = '".$this->db->escape($type)."'";
@@ -110,6 +112,7 @@ class SofAlerte extends SofCommonObject
 		}
 		$this->entity = (int) $conf->entity;
 		$this->ref = 'ALT-'.date('Ymd-His').'-'.((int) $objectId);
+		$this->dedup_key = $dedupKey;
 		$this->alert_type = $type;
 		$this->severity = $severity;
 		$this->fk_agence = $fkAgence ?: null;
@@ -122,6 +125,14 @@ class SofAlerte extends SofCommonObject
 		$this->date_alert = dol_now();
 		$this->status = 0;
 		$actor = $user instanceof User ? $user : $GLOBALS['user'];
-		return $this->create($actor, 1) > 0 ? 1 : 0;
+		$result = $this->create($actor, 1);
+		if ($result > 0) {
+			return 1;
+		}
+		// A concurrent detector may have inserted the same open alert first.
+		$sql = 'SELECT rowid FROM '.$this->db->prefix().$this->table_element.' WHERE entity = '.((int) $conf->entity);
+		$sql .= " AND dedup_key = '".$this->db->escape($dedupKey)."' AND status < 2 LIMIT 1";
+		$resql = $this->db->query($sql);
+		return $resql && $this->db->num_rows($resql) > 0 ? 0 : -1;
 	}
 }

@@ -56,25 +56,13 @@ function agence_process_business_action($key, $id)
 		if (!empty($user->admin) || $user->hasRight('agence', 'audit', 'read') || $user->hasRight('agence', 'controle', 'create')) {
 			$result = $engine->updateRow('sof_caisse_alerte', $id, $businessAction === 'read'
 				? array('date_read' => dol_now(), 'fk_user_read' => (int) $user->id, 'status' => 1)
-				: array('date_close' => dol_now(), 'fk_user_close' => (int) $user->id, 'status' => 2), $user);
+				: array('date_close' => dol_now(), 'fk_user_close' => (int) $user->id, 'dedup_key' => null, 'status' => 2), $user);
 		} else {
 			$engine->error = 'Permission refusée pour gérer les alertes.';
 		}
 	} elseif ($key === 'ecart' && $businessAction === 'resolve') {
-		if (!empty($user->admin) || $user->hasRight('agence', 'ecart', 'manage')) {
-			$reason = trim((string) GETPOST('reason', 'restricthtml'));
-			$decision = trim((string) GETPOST('decision', 'restricthtml'));
-			$result = ($reason === '' || $decision === '') ? -1 : $engine->updateRow('sof_caisse_ecart', $id, array(
-				'reason' => $reason, 'treatment_decision' => $decision,
-				'fk_user_validator' => (int) $user->id, 'status' => 3,
-			), $user);
-			if ($result < 0 && empty($engine->error)) {
-				$engine->error = 'La justification et la décision sont obligatoires.';
-			}
-		} else {
-			$engine->error = 'Permission refusée pour traiter les écarts.';
-		}
-	} elseif ($key === 'paiementdiffere' && in_array($businessAction, array('validate', 'dispute', 'close'), true)) {
+		$result = $engine->resolveCashGap($user, $id, GETPOST('reason', 'restricthtml'), GETPOST('decision', 'restricthtml'));
+	} elseif ($key === 'paiementdiffere' && in_array($businessAction, array('validate', 'dispute', 'regularize', 'close'), true)) {
 		$result = $engine->transitionDeferredPayment($user, $id, $businessAction, GETPOST('reason', 'restricthtml'));
 	} elseif (in_array($key, array('boncommande', 'bst', 'instruction'), true) && in_array($businessAction, array('validate', 'reject'), true)) {
 		if ($businessAction === 'validate') {
@@ -148,10 +136,10 @@ function agence_print_business_actions($key, $object)
 			$forms[] = agence_business_form('execute', 'Exécuter le remboursement');
 		}
 	} elseif ($key === 'controle') {
-		if ((int) $object->status === 0 && $user->hasRight('agence', 'controle', 'create')) {
+		if ((int) $object->status === 0 && $user->hasRight('agence', 'controle', 'create') && $user->hasRight('agence', 'controle', 'freeze')) {
 			$forms[] = agence_business_form('start', 'Démarrer et geler la caisse');
 		}
-		if ((int) $object->status === 1 && $user->hasRight('agence', 'controle', 'create')) {
+		if ((int) $object->status === 1 && $user->hasRight('agence', 'controle', 'create') && $user->hasRight('agence', 'controle', 'freeze')) {
 			$forms[] = agence_business_form('complete', 'Terminer le contrôle', array('physical_amount' => 'Montant physique', 'observations' => 'Observations'));
 		}
 	} elseif ($key === 'transfert' && $user->hasRight('agence', 'transfert', 'create')) {
@@ -180,9 +168,14 @@ function agence_print_business_actions($key, $object)
 		if ((int) $object->status === 0 && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
 			$forms[] = agence_business_form('validate', 'Valider');
 		}
-		if (!in_array((int) $object->status, array(4, 7, 9), true)) {
-			$forms[] = agence_business_form('dispute', 'Mettre en litige', array('reason' => 'Motif'));
-			$forms[] = agence_business_form('close', 'Clore', array('reason' => 'Motif'));
+		if (in_array((int) $object->status, array(1, 2, 3, 5), true) && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
+			$forms[] = agence_business_form('dispute', 'Mettre en litige', array('reason' => 'Motif obligatoire'));
+		}
+		if ((int) $object->status === 6 && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
+			$forms[] = agence_business_form('regularize', 'Régulariser le litige', array('reason' => 'Mesure de régularisation'));
+		}
+		if ((int) $object->status === 4 && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
+			$forms[] = agence_business_form('close', 'Clore définitivement', array('reason' => 'Motif de clôture'));
 		}
 	} elseif (in_array($key, array('boncommande', 'bst', 'instruction'), true) && (int) $object->status === 0) {
 		$forms[] = agence_business_form('validate', 'Valider');

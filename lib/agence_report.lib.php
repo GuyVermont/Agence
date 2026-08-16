@@ -80,6 +80,9 @@ function agence_report_period_condition($field, $start, $end)
 function agence_report_scope_condition($field = 'fk_agence')
 {
 	global $db, $user;
+	if (!SofAgenceService::isActiveUser($db, $user)) {
+		return ' AND 1 = 0';
+	}
 	if (!empty($user->admin) || $user->hasRight('agence', 'dashboard', 'direction') || $user->hasRight('agence', 'scope', 'write')) {
 		return '';
 	}
@@ -99,18 +102,19 @@ function agence_report_scope_condition($field = 'fk_agence')
  */
 function agence_report_kpis($start, $end)
 {
-	global $db, $langs;
+	global $db, $langs, $conf;
+	$entity = (int) $conf->entity;
 
 	return array(
-		array('label' => $langs->trans('ActiveAgencies'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_agence WHERE entity IN ('.getEntity('sof_agence').') AND status = 1'.agence_report_scope_condition('rowid'), 'total', 0), 'picto' => 'building'),
-		array('label' => $langs->trans('ActiveCashDesks'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse WHERE entity IN ('.getEntity('sof_caisse').') AND status = 1'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'cash-register'),
-		array('label' => $langs->trans('OpenSessions'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse_session WHERE entity IN ('.getEntity('sof_caisse_session').') AND status IN (1,2,3,4,5)'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'clock'),
-		array('label' => $langs->trans('PeriodCollections'), 'value' => price(agence_report_scalar("SELECT COALESCE(SUM(amount),0) as total FROM ".$db->prefix()."sof_caisse_mouvement WHERE entity IN (".getEntity('sof_caisse_mouvement').") AND status=1 AND direction='credit' AND type_operation <> 'opening'".agence_report_scope_condition('fk_agence').agence_report_period_condition('transaction_date', $start, $end), 'total', 0)), 'picto' => 'money-bill-transfer'),
-		array('label' => $langs->trans('Refunds'), 'value' => price(agence_report_scalar('SELECT COALESCE(SUM(refunded_amount),0) as total FROM '.$db->prefix().'sof_remboursement WHERE entity IN ('.getEntity('sof_remboursement').') AND status IN (3,4)'.agence_report_scope_condition('fk_agence').agence_report_period_condition('execution_date', $start, $end), 'total', 0)), 'picto' => 'hand-holding-dollar'),
-		array('label' => $langs->trans('DeferredRemaining'), 'value' => price(agence_report_scalar('SELECT COALESCE(SUM(remaining_amount),0) as total FROM '.$db->prefix().'sof_paiement_differe WHERE entity IN ('.getEntity('sof_paiement_differe').') AND status NOT IN (4,7,9)'.agence_report_scope_condition('fk_agence'), 'total', 0)), 'picto' => 'file-invoice-dollar'),
-		array('label' => $langs->trans('UnreconciledDeposits'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse_depot_banque WHERE entity IN ('.getEntity('sof_caisse_depot_banque').') AND status NOT IN (3,9)'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'building-columns'),
-		array('label' => $langs->trans('OpenCashGaps'), 'value' => price(agence_report_scalar('SELECT COALESCE(SUM(ABS(gap_amount)),0) as total FROM '.$db->prefix().'sof_caisse_ecart WHERE entity IN ('.getEntity('sof_caisse_ecart').') AND status NOT IN (3,9)'.agence_report_scope_condition('fk_agence'), 'total', 0)), 'picto' => 'triangle-exclamation'),
-		array('label' => $langs->trans('OpenAlerts'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse_alerte WHERE entity IN ('.getEntity('sof_caisse_alerte').') AND status = 0'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'bell'),
+		array('label' => $langs->trans('ActiveAgencies'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_agence WHERE entity = '.$entity.' AND status = 1'.agence_report_scope_condition('rowid'), 'total', 0), 'picto' => 'building'),
+		array('label' => $langs->trans('ActiveCashDesks'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse WHERE entity = '.$entity.' AND status = 1'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'cash-register'),
+		array('label' => $langs->trans('OpenSessions'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse_session WHERE entity = '.$entity.' AND status IN (1,2,3,4,5)'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'clock'),
+		array('label' => $langs->trans('PeriodCollections'), 'value' => price(agence_report_scalar("SELECT COALESCE(SUM(amount),0) as total FROM ".$db->prefix()."sof_caisse_mouvement WHERE entity = ".$entity." AND status=1 AND direction='credit' AND type_operation <> 'opening'".agence_report_scope_condition('fk_agence').agence_report_period_condition('transaction_date', $start, $end), 'total', 0)), 'picto' => 'money-bill-transfer'),
+		array('label' => $langs->trans('Refunds'), 'value' => price(agence_report_scalar('SELECT COALESCE(SUM(refunded_amount),0) as total FROM '.$db->prefix().'sof_remboursement WHERE entity = '.$entity.' AND status IN (3,4)'.agence_report_scope_condition('fk_agence').agence_report_period_condition('execution_date', $start, $end), 'total', 0)), 'picto' => 'hand-holding-dollar'),
+		array('label' => $langs->trans('DeferredRemaining'), 'value' => price(agence_report_scalar('SELECT COALESCE(SUM(remaining_amount),0) as total FROM '.$db->prefix().'sof_paiement_differe WHERE entity = '.$entity.' AND status NOT IN (4,7,9)'.agence_report_scope_condition('fk_agence'), 'total', 0)), 'picto' => 'file-invoice-dollar'),
+		array('label' => $langs->trans('UnreconciledDeposits'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse_depot_banque WHERE entity = '.$entity.' AND status NOT IN (3,9)'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'building-columns'),
+		array('label' => $langs->trans('OpenCashGaps'), 'value' => price(agence_report_scalar('SELECT COALESCE(SUM(ABS(gap_amount)),0) as total FROM '.$db->prefix().'sof_caisse_ecart WHERE entity = '.$entity.' AND status NOT IN (3,9)'.agence_report_scope_condition('fk_agence'), 'total', 0)), 'picto' => 'triangle-exclamation'),
+		array('label' => $langs->trans('OpenAlerts'), 'value' => agence_report_scalar('SELECT COUNT(*) as total FROM '.$db->prefix().'sof_caisse_alerte WHERE entity = '.$entity.' AND status = 0'.agence_report_scope_condition('fk_agence'), 'total', 0), 'picto' => 'bell'),
 	);
 }
 
@@ -124,12 +128,13 @@ function agence_report_kpis($start, $end)
  */
 function agence_report_dataset($dataset, $start, $end)
 {
-	global $db;
+	global $db, $conf, $user;
+	$entity = (int) $conf->entity;
 
 	if ($dataset === 'daily_cash') {
 		$sql = "SELECT fk_agence, fk_caisse, payment_mode, direction, COUNT(*) as nb_operations, COALESCE(SUM(amount),0) as total_amount";
 		$sql .= ' FROM '.$db->prefix().'sof_caisse_mouvement';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_caisse_mouvement').') AND status = 1';
+		$sql .= ' WHERE entity = '.$entity.' AND status = 1';
 		$sql .= agence_report_scope_condition('fk_agence');
 		$sql .= agence_report_period_condition('transaction_date', $start, $end);
 		$sql .= ' GROUP BY fk_agence, fk_caisse, payment_mode, direction ORDER BY fk_agence, fk_caisse, payment_mode, direction';
@@ -138,7 +143,7 @@ function agence_report_dataset($dataset, $start, $end)
 
 	if ($dataset === 'refunds') {
 		$sql = 'SELECT ref, fk_soc, fk_agence, payment_mode, requested_amount, approved_amount, refunded_amount, status, execution_date';
-		$sql .= ' FROM '.$db->prefix().'sof_remboursement WHERE entity IN ('.getEntity('sof_remboursement').')';
+		$sql .= ' FROM '.$db->prefix().'sof_remboursement WHERE entity = '.$entity;
 		$sql .= agence_report_scope_condition('fk_agence');
 		$sql .= agence_report_period_condition('request_date', $start, $end);
 		$sql .= ' ORDER BY rowid DESC';
@@ -148,7 +153,7 @@ function agence_report_dataset($dataset, $start, $end)
 	if ($dataset === 'deferred') {
 		$sql = 'SELECT fk_agence, status, COUNT(*) as nb_records, COALESCE(SUM(expected_amount),0) as expected_amount, COALESCE(SUM(remaining_amount),0) as remaining_amount';
 		$sql .= ' FROM '.$db->prefix().'sof_paiement_differe';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_paiement_differe').')';
+		$sql .= ' WHERE entity = '.$entity;
 		$sql .= agence_report_scope_condition('fk_agence');
 		$sql .= ' GROUP BY fk_agence, status ORDER BY fk_agence, status';
 		return agence_report_rows($sql);
@@ -157,7 +162,7 @@ function agence_report_dataset($dataset, $start, $end)
 	if ($dataset === 'gaps') {
 		$sql = 'SELECT ref, fk_agence, fk_caisse, gap_type, severity, gap_amount, status';
 		$sql .= ' FROM '.$db->prefix().'sof_caisse_ecart';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_caisse_ecart').') AND status NOT IN (3,9)';
+		$sql .= ' WHERE entity = '.$entity.' AND status NOT IN (3,9)';
 		$sql .= agence_report_scope_condition('fk_agence');
 		$sql .= ' ORDER BY rowid DESC';
 		$sql .= $db->plimit(100, 0);
@@ -167,7 +172,7 @@ function agence_report_dataset($dataset, $start, $end)
 	if ($dataset === 'deposits') {
 		$sql = 'SELECT fk_agence, status, COUNT(*) as nb_records, COALESCE(SUM(amount),0) as total_amount';
 		$sql .= ' FROM '.$db->prefix().'sof_caisse_depot_banque';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_caisse_depot_banque').')';
+		$sql .= ' WHERE entity = '.$entity;
 		$sql .= agence_report_scope_condition('fk_agence');
 		$sql .= ' GROUP BY fk_agence, status ORDER BY fk_agence, status';
 		return agence_report_rows($sql);
@@ -177,7 +182,80 @@ function agence_report_dataset($dataset, $start, $end)
 		return agence_report_transversal_rows();
 	}
 
+	if ($dataset === 'cashier_sessions') {
+		$sql = 'SELECT ref, fk_agence, fk_caisse, date_opening, date_closing, theoretical_amount, physical_amount, gap_amount, status';
+		$sql .= ' FROM '.$db->prefix().'sof_caisse_session WHERE entity = '.$entity.' AND fk_user_cashier = '.((int) $user->id);
+		$sql .= agence_report_period_condition('date_opening', $start, $end).' ORDER BY date_opening DESC';
+		return agence_report_rows($sql);
+	}
+
+	if ($dataset === 'deferred_cases') {
+		$sql = 'SELECT ref, fk_soc, fk_agence, expected_amount, paid_amount, remaining_amount, expected_payment_date, status';
+		$sql .= ' FROM '.$db->prefix().'sof_paiement_differe WHERE entity = '.$entity;
+		$sql .= agence_report_scope_condition('fk_agence').' ORDER BY expected_payment_date, rowid DESC'.$db->plimit(200, 0);
+		return agence_report_rows($sql);
+	}
+
+	if ($dataset === 'audit_controls') {
+		$sql = 'SELECT ref, fk_agence, fk_caisse, fk_session, fk_user_controller, date_start, date_end, gap_amount, freeze_enabled, status';
+		$sql .= ' FROM '.$db->prefix().'sof_caisse_controle WHERE entity = '.$entity;
+		$sql .= agence_report_scope_condition('fk_agence').agence_report_period_condition('date_start', $start, $end);
+		$sql .= ' ORDER BY date_start DESC'.$db->plimit(200, 0);
+		return agence_report_rows($sql);
+	}
+
+	if ($dataset === 'accounting_queue') {
+		$sql = 'SELECT ref, fk_agence, fk_caisse, date_validation, accounting_status, accounting_attempts, accounting_error, status';
+		$sql .= ' FROM '.$db->prefix().'sof_caisse_session WHERE entity = '.$entity.' AND status IN (7,8)';
+		$sql .= agence_report_scope_condition('fk_agence').' ORDER BY date_validation DESC'.$db->plimit(200, 0);
+		return agence_report_rows($sql);
+	}
+
 	return array();
+}
+
+/** Return only dashboards that match the current user's operational role and rights. */
+function agence_report_available_dashboards()
+{
+	global $user;
+	$dashboards = array();
+	if (!empty($user->admin) || $user->hasRight('agence', 'session', 'open') || $user->hasRight('agence', 'mouvement', 'cashin')) {
+		$dashboards['cashier'] = array('label' => 'Tableau caissier', 'dataset' => 'cashier_sessions', 'columns' => array(
+			'ref' => 'Référence', 'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'date_opening' => 'Ouverture',
+			'date_closing' => 'Clôture', 'theoretical_amount' => 'Théorique', 'physical_amount' => 'Physique', 'gap_amount' => 'Écart', 'status' => 'Statut',
+		));
+	}
+	if (!empty($user->admin) || $user->hasRight('agence', 'report', 'read') || $user->hasRight('agence', 'session', 'validate')) {
+		$dashboards['agency'] = array('label' => 'Pilotage agence', 'dataset' => 'daily_cash', 'columns' => array(
+			'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'payment_mode' => 'Mode', 'direction' => 'Sens', 'nb_operations' => 'Opérations', 'total_amount' => 'Montant',
+		));
+	}
+	if (!empty($user->admin) || $user->hasRight('agence', 'paiementdiffere', 'create') || $user->hasRight('agence', 'paiementdiffere', 'validate')) {
+		$dashboards['deferred'] = array('label' => 'Recouvrement différé', 'dataset' => 'deferred_cases', 'columns' => array(
+			'ref' => 'Référence', 'fk_soc' => 'Tiers', 'fk_agence' => 'Agence', 'expected_amount' => 'Attendu', 'paid_amount' => 'Payé',
+			'remaining_amount' => 'Restant', 'expected_payment_date' => 'Échéance', 'status' => 'Statut',
+		));
+	}
+	if (!empty($user->admin) || $user->hasRight('agence', 'dashboard', 'audit') || $user->hasRight('agence', 'controle', 'create') || $user->hasRight('agence', 'audit', 'read')) {
+		$dashboards['audit'] = array('label' => 'Contrôle et audit', 'dataset' => 'audit_controls', 'columns' => array(
+			'ref' => 'Référence', 'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'fk_session' => 'Session', 'fk_user_controller' => 'Contrôleur',
+			'date_start' => 'Début', 'date_end' => 'Fin', 'gap_amount' => 'Écart', 'freeze_enabled' => 'Gel actif', 'status' => 'Statut',
+		));
+	}
+	if (!empty($user->admin) || $user->hasRight('agence', 'compta', 'post')) {
+		$dashboards['accounting'] = array('label' => 'File comptable', 'dataset' => 'accounting_queue', 'columns' => array(
+			'ref' => 'Référence', 'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'date_validation' => 'Validation',
+			'accounting_status' => 'État comptable', 'accounting_attempts' => 'Tentatives', 'accounting_error' => 'Dernier rejet', 'status' => 'Statut',
+		));
+	}
+	if (!empty($user->admin) || $user->hasRight('agence', 'dashboard', 'direction') || $user->hasRight('agence', 'scope', 'write')) {
+		$dashboards['direction'] = array('label' => 'Direction multi-agences', 'dataset' => 'transversal', 'columns' => array(
+			'ref' => 'Référence', 'label' => 'Agence', 'town' => 'Ville', 'status' => 'Statut', 'nb_cashdesks' => 'Caisses',
+			'nb_open_sessions' => 'Sessions ouvertes', 'deferred_remaining' => 'Créances', 'open_gap_amount' => 'Écarts',
+			'nb_unreconciled_deposits' => 'Dépôts non rapprochés', 'nb_open_alerts' => 'Alertes',
+		));
+	}
+	return $dashboards;
 }
 
 /**
@@ -187,17 +265,18 @@ function agence_report_dataset($dataset, $start, $end)
  */
 function agence_report_transversal_rows()
 {
-	global $db;
+	global $db, $conf;
+	$entity = (int) $conf->entity;
 
 	$sql = 'SELECT a.rowid, a.ref, a.label, a.town, a.status,';
-	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse c WHERE c.fk_agence = a.rowid) as nb_cashdesks,';
-	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse_session s WHERE s.fk_agence = a.rowid AND s.status IN (1,2,3,4,5)) as nb_open_sessions,';
-	$sql .= ' (SELECT COALESCE(SUM(d.remaining_amount),0) FROM '.$db->prefix().'sof_paiement_differe d WHERE d.fk_agence = a.rowid AND d.status NOT IN (4,7,9)) as deferred_remaining,';
-	$sql .= ' (SELECT COALESCE(SUM(ABS(e.gap_amount)),0) FROM '.$db->prefix().'sof_caisse_ecart e WHERE e.fk_agence = a.rowid AND e.status NOT IN (3,9)) as open_gap_amount,';
-	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse_depot_banque b WHERE b.fk_agence = a.rowid AND b.status NOT IN (3,9)) as nb_unreconciled_deposits,';
-	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse_alerte al WHERE al.fk_agence = a.rowid AND al.status = 0) as nb_open_alerts';
+	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse c WHERE c.entity = a.entity AND c.fk_agence = a.rowid) as nb_cashdesks,';
+	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse_session s WHERE s.entity = a.entity AND s.fk_agence = a.rowid AND s.status IN (1,2,3,4,5)) as nb_open_sessions,';
+	$sql .= ' (SELECT COALESCE(SUM(d.remaining_amount),0) FROM '.$db->prefix().'sof_paiement_differe d WHERE d.entity = a.entity AND d.fk_agence = a.rowid AND d.status NOT IN (4,7,9)) as deferred_remaining,';
+	$sql .= ' (SELECT COALESCE(SUM(ABS(e.gap_amount)),0) FROM '.$db->prefix().'sof_caisse_ecart e WHERE e.entity = a.entity AND e.fk_agence = a.rowid AND e.status NOT IN (3,9)) as open_gap_amount,';
+	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse_depot_banque b WHERE b.entity = a.entity AND b.fk_agence = a.rowid AND b.status NOT IN (3,9)) as nb_unreconciled_deposits,';
+	$sql .= ' (SELECT COUNT(*) FROM '.$db->prefix().'sof_caisse_alerte al WHERE al.entity = a.entity AND al.fk_agence = a.rowid AND al.status = 0) as nb_open_alerts';
 	$sql .= ' FROM '.$db->prefix().'sof_agence a';
-	$sql .= ' WHERE a.entity IN ('.getEntity('sof_agence').')';
+	$sql .= ' WHERE a.entity = '.$entity;
 	$sql .= agence_report_scope_condition('a.rowid');
 	$sql .= ' ORDER BY a.ref ASC';
 	return agence_report_rows($sql);
@@ -283,9 +362,21 @@ function agence_report_export_csv($dataset, $start, $end)
 	$filename = 'agence_'.$dataset.'_'.$start.'_'.$end.'.csv';
 	header('Content-Type: text/csv; charset=UTF-8');
 	header('Content-Disposition: attachment; filename="'.$filename.'"');
+	header('Cache-Control: private, no-store, max-age=0');
+	header('X-Content-Type-Options: nosniff');
 	$out = fopen('php://output', 'w');
-	if (!empty($rows)) {
+	fwrite($out, "\xEF\xBB\xBF");
+	$headers = array();
+	foreach (agence_report_available_dashboards() as $dashboard) {
+		if ($dashboard['dataset'] === $dataset) {
+			$headers = array_keys($dashboard['columns']);
+			break;
+		}
+	}
+	if (empty($headers) && !empty($rows)) {
 		$headers = array_keys(get_object_vars($rows[0]));
+	}
+	if (!empty($headers)) {
 		fputcsv($out, $headers, ';');
 		foreach ($rows as $row) {
 			$line = array();

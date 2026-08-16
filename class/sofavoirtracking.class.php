@@ -26,7 +26,11 @@ class SofAvoirTracking extends SofCommonObject
 		'reason' => array('type' => 'text', 'label' => 'Reason'),
 		'expiration_date' => array('type' => 'date', 'label' => 'ExpirationDate'),
 		'validation_status' => array('type' => 'integer', 'label' => 'ValidationStatus', 'noteditable' => 1),
+		'date_validation' => array('type' => 'datetime', 'label' => 'ValidationDate', 'noteditable' => 1),
+		'fk_user_validator' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'Validator', 'noteditable' => 1),
 		'use_status' => array('type' => 'integer', 'label' => 'UseStatus', 'noteditable' => 1),
+		'date_last_use' => array('type' => 'datetime', 'label' => 'LastUseDate', 'noteditable' => 1),
+		'fk_user_last_use' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'LastUseUser', 'noteditable' => 1),
 		'blocked_reason' => array('type' => 'text', 'label' => 'BlockedReason'),
 		'status' => array('type' => 'integer', 'label' => 'Status', 'notnull' => 1, 'default' => 0, 'index' => 1, 'noteditable' => 1),
 	);

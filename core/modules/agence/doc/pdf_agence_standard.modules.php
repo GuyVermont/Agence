@@ -50,6 +50,17 @@ class pdf_agence_standard
 		$this->db = $db;
 	}
 
+	/** Return the entity-isolated absolute path of an object's generated document. */
+	public function getDocumentPath($object)
+	{
+		global $conf;
+		$root = !empty($conf->agence->dir_output) ? $conf->agence->dir_output : DOL_DATA_ROOT.'/agence';
+		$entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$ref = !empty($object->ref) ? $object->ref : (!empty($object->id) ? (string) $object->id : (string) $object->rowid);
+		$subdir = $root.'/documents/entity_'.$entity.'/'.$object->table_element;
+		return $subdir.'/'.dol_sanitizeFileName($object->table_element.'_'.$ref).'.pdf';
+	}
+
 	/**
 	 * Write object PDF.
 	 *
@@ -67,33 +78,51 @@ class pdf_agence_standard
 		}
 		$outputlangs->loadLangs(array('main', 'agence@agence'));
 
-		$dir = !empty($conf->agence->dir_output) ? $conf->agence->dir_output : DOL_DATA_ROOT.'/agence';
-		$subdir = $dir.'/documents/'.$object->table_element;
+		$file = $this->getDocumentPath($object);
+		$subdir = dirname($file);
 		if (!dol_is_dir($subdir)) {
-			dol_mkdir($subdir);
+			if (dol_mkdir($subdir) < 0) {
+				$this->result['error'] = 'Impossible de créer le répertoire documentaire de l’entité.';
+				return -1;
+			}
 		}
 
 		$ref = !empty($object->ref) ? $object->ref : (!empty($object->id) ? (string) $object->id : (string) $object->rowid);
-		$file = $subdir.'/'.dol_sanitizeFileName($object->table_element.'_'.$ref).'.pdf';
 
 		$pdf = pdf_getInstance('A4', 'mm', 'P');
 		$defaultFontSize = pdf_getPDFFontSize($outputlangs);
 		$pdf->SetAutoPageBreak(1, 15);
-		$pdf->SetTitle($outputlangs->trans('ModuleAgenceName').' - '.$ref);
-		$pdf->SetSubject($outputlangs->trans('AgencyDocument'));
+		$pdf->SetTitle($outputlangs->transnoentities('ModuleAgenceName').' - '.$ref);
+		$pdf->SetSubject($outputlangs->transnoentities('AgencyDocument'));
 		$pdf->SetCreator('Dolibarr');
 		$pdf->Open();
 		$pdf->AddPage();
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $defaultFontSize);
 
 		$y = 15;
+		$pdf->SetFillColor(25, 113, 172);
+		$pdf->Rect(0, 0, 210, 11, 'F');
+		$pdf->SetDrawColor(242, 115, 10);
+		$pdf->SetLineWidth(1.2);
+		$pdf->Line(15, 12, 195, 12);
+		$pdf->SetTextColor(40, 50, 68);
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', 14);
 		$pdf->SetXY(15, $y);
-		$pdf->MultiCell(180, 8, $outputlangs->trans('ModuleAgenceName'), 0, 'L');
+		$pdf->MultiCell(120, 8, $outputlangs->transnoentities('ModuleAgenceName'), 0, 'L');
+		$brandLogo = DOL_DOCUMENT_ROOT.'/custom/agence/img/ipowerworld-logo.svg';
+		if (is_readable($brandLogo) && method_exists($pdf, 'ImageSVG')) {
+			$pdf->ImageSVG($brandLogo, 145, $y - 2, 50, 14, '', '', '', 0, false);
+		} else {
+			$pdf->SetTextColor(25, 113, 172);
+			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', 11);
+			$pdf->SetXY(145, $y);
+			$pdf->Cell(50, 7, 'iPowerWorld', 0, 0, 'R');
+			$pdf->SetTextColor(40, 50, 68);
+		}
 		$y += 10;
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', 9);
 		$pdf->SetXY(15, $y);
-		$pdf->MultiCell(180, 6, $outputlangs->trans('AgencyDocument').' - '.$object->table_element, 0, 'L');
+		$pdf->MultiCell(180, 6, $outputlangs->transnoentities('AgencyDocument').' - '.$object->table_element, 0, 'L');
 		$y += 8;
 
 		if (is_object($mysoc)) {
@@ -117,7 +146,7 @@ class pdf_agence_standard
 				$pdf->AddPage();
 				$y = 15;
 			}
-			$label = $outputlangs->trans($field['label']);
+			$label = $outputlangs->transnoentities($field['label']);
 			$value = isset($object->$fieldKey) ? $object->$fieldKey : '';
 			if ($value === null || $value === '') {
 				$value = '-';
@@ -132,18 +161,29 @@ class pdf_agence_standard
 				$ts = is_numeric($value) ? (int) $value : $this->db->jdate($value);
 				$value = $ts ? dol_print_date($ts, 'day', false, $outputlangs) : $value;
 			}
+			$label = $outputlangs->convToOutputCharset((string) $label);
+			$value = $outputlangs->convToOutputCharset(dol_trunc((string) $value, 500));
+			$rowHeight = method_exists($pdf, 'getStringHeight') ? max(5, (float) $pdf->getStringHeight(120, $value)) : 5;
+			if ($y + $rowHeight > 277) {
+				$pdf->AddPage();
+				$y = 15;
+			}
 			$pdf->SetFont(pdf_getPDFFont($outputlangs), 'B', 8);
 			$pdf->SetXY(15, $y);
 			$pdf->MultiCell(55, 5, dol_trunc($label, 35), 0, 'L');
 			$pdf->SetFont(pdf_getPDFFont($outputlangs), '', 8);
 			$pdf->SetXY(72, $y);
-			$pdf->MultiCell(120, 5, dol_trunc((string) $value, 250), 0, 'L');
-			$y += 6;
+			$pdf->MultiCell(120, 5, $value, 0, 'L');
+			$y += $rowHeight + 1;
 		}
 
-		$pdf->SetY(-15);
+		// Disable the automatic break before positioning the footer: placing it
+		// exactly on the bottom margin would otherwise create a blank last page.
+		$pdf->SetAutoPageBreak(false);
+		$pdf->SetY(-14);
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', 7);
-		$pdf->Cell(0, 10, $outputlangs->trans('GeneratedByDolibarr').' - '.dol_print_date(dol_now(), 'dayhour', false, $outputlangs), 0, 0, 'C');
+		$pdf->SetTextColor(40, 50, 68);
+		$pdf->Cell(0, 8, 'iPowerWorld · csa@ipowerworld.net · Généré par Dolibarr - '.dol_print_date(dol_now(), 'dayhour', false, $outputlangs), 0, 0, 'C');
 
 		$pdf->Output($file, 'F');
 		if (!empty($pdf->error)) {
@@ -152,7 +192,7 @@ class pdf_agence_standard
 		}
 
 		$this->result['fullpath'] = $file;
-		$this->result['relativepath'] = 'documents/'.$object->table_element.'/'.basename($file);
+		$this->result['relativepath'] = 'documents/entity_'.((int) $conf->entity).'/'.$object->table_element.'/'.basename($file);
 		return 1;
 	}
 }

@@ -185,6 +185,30 @@ class SofAgenceOperations
 		if (empty($data['fk_session']) || empty($data['fk_caisse']) || empty($data['fk_agence'])) {
 			return $this->fail('Le mouvement doit être rattaché à une agence, une caisse et une session.');
 		}
+		if (!$this->ensureAgencyScope($user, (int) $data['fk_agence'], 'cash_movement', $amount, !empty($data['fk_das']) ? (int) $data['fk_das'] : 0)) {
+			return -1;
+		}
+		$ownTransaction = empty($this->db->transaction_opened);
+		if ($ownTransaction) {
+			$this->db->begin();
+		}
+		$sql = 'SELECT fk_agence, fk_caisse, fk_das, status, freeze_status FROM '.$this->db->prefix().'sof_caisse_session';
+		$sql .= ' WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $data['fk_session']).' FOR UPDATE';
+		$resql = $this->db->query($sql);
+		$session = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$session || (int) $session->fk_agence !== (int) $data['fk_agence'] || (int) $session->fk_caisse !== (int) $data['fk_caisse']
+			|| ((!empty($data['fk_das']) || !empty($session->fk_das)) && (int) $session->fk_das !== (int) $data['fk_das'])) {
+			if ($ownTransaction) {
+				$this->db->rollback();
+			}
+			return $this->fail('Le mouvement ne correspond pas au contexte agence, caisse et DAS de la session.');
+		}
+		if (!in_array((int) $session->status, array(1, 2), true) || !empty($session->freeze_status)) {
+			if ($ownTransaction) {
+				$this->db->rollback();
+			}
+			return $this->fail('Aucun mouvement n’est autorisé sur une session gelée, en pause ou en clôture.');
+		}
 
 		$movement = new SofCaisseMouvement($this->db);
 		$movement->entity = (int) $conf->entity;
@@ -205,10 +229,19 @@ class SofAgenceOperations
 		$movement->accounting_status = 0;
 		$id = $movement->create($user);
 		if ($id <= 0) {
+			if ($ownTransaction) {
+				$this->db->rollback();
+			}
 			return $this->fail($movement->error ?: 'Impossible de créer le mouvement.', $movement->errors);
 		}
 		if ($recalculate && $this->recalculateSession((int) $data['fk_session']) < 0) {
+			if ($ownTransaction) {
+				$this->db->rollback();
+			}
 			return -1;
+		}
+		if ($ownTransaction) {
+			$this->db->commit();
 		}
 		return (int) $id;
 	}
@@ -387,11 +420,24 @@ class SofAgenceOperations
 		} elseif ($action === 'account' && $status === SofCaisseSession::STATUS_VALIDATED) {
 			$this->db->begin();
 			$managedTransaction = true;
-			if ($this->postSessionToAccounting($user, $session, false) < 0) {
+			$lockSql = 'SELECT status FROM '.$this->db->prefix().'sof_caisse_session WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $session->id).' FOR UPDATE';
+			$lockResult = $this->db->query($lockSql);
+			$lockedSession = $lockResult ? $this->db->fetch_object($lockResult) : null;
+			if (!$lockedSession || (int) $lockedSession->status !== SofCaisseSession::STATUS_VALIDATED) {
 				$this->db->rollback();
+				return $this->fail('La session a été modifiée avant le déversement comptable.');
+			}
+			if ($this->postSessionToAccounting($user, $session, false) < 0) {
+				$accountingError = $this->error ?: 'Échec du déversement comptable.';
+				$this->db->rollback();
+				$this->markAccountingFailure($user, $session, $accountingError);
 				return -1;
 			}
-			$updates = array('status' => SofCaisseSession::STATUS_ACCOUNTED, 'accounting_status' => 4);
+			$updates = array(
+				'status' => SofCaisseSession::STATUS_ACCOUNTED, 'accounting_status' => 4,
+				'accounting_attempts' => (int) $session->accounting_attempts + 1, 'accounting_error' => null,
+				'date_accounting' => dol_now(), 'fk_user_accounting' => (int) $user->id,
+			);
 		} elseif ($action === 'block' && $status < SofCaisseSession::STATUS_CLOSED) {
 			$reason = trim((string) (isset($params['reason']) ? $params['reason'] : ''));
 			if ($reason === '') {
@@ -848,20 +894,37 @@ class SofAgenceOperations
 	/** Post non-native operational lines as balanced bookkeeping entries. */
 	public function postSessionToAccounting(User $user, SofCaisseSession $session, $manageTransaction = true)
 	{
+		global $conf;
+		if (!$this->hasRight($user, 'compta', 'post')) {
+			return $this->fail('Permission refusée pour le déversement comptable.');
+		}
 		if (!isModEnabled('accounting')) {
 			return $this->fail('Le module Comptabilité en partie double doit être activé avant le déversement.');
 		}
+		require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 		require_once DOL_DOCUMENT_ROOT.'/accountancy/class/bookkeeping.class.php';
-
-		$sql = 'SELECT m.* FROM '.$this->db->prefix().'sof_caisse_mouvement m';
-		$sql .= ' WHERE m.fk_session = '.((int) $session->id).' AND m.status = 1 AND m.accounting_status = 0';
-		$sql .= " AND m.type_operation IN ('opening','manual_cash_in','manual_cash_out','adjustment') ORDER BY m.rowid";
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			return $this->fail($this->db->lasterror());
-		}
 		if ($manageTransaction) {
 			$this->db->begin();
+		}
+		$sql = 'SELECT rowid, status FROM '.$this->db->prefix().'sof_caisse_session WHERE entity = '.((int) $conf->entity);
+		$sql .= ' AND rowid = '.((int) $session->id).' FOR UPDATE';
+		$sessionResult = $this->db->query($sql);
+		$currentSession = $sessionResult ? $this->db->fetch_object($sessionResult) : null;
+		if (!$currentSession || (int) $currentSession->status !== SofCaisseSession::STATUS_VALIDATED) {
+			if ($manageTransaction) {
+				$this->db->rollback();
+			}
+			return $this->fail('Seule une session validée de l’entité courante peut être déversée.');
+		}
+		$sql = 'SELECT m.* FROM '.$this->db->prefix().'sof_caisse_mouvement m';
+		$sql .= ' WHERE m.entity = '.((int) $conf->entity).' AND m.fk_session = '.((int) $session->id).' AND m.status = 1 AND m.accounting_status IN (0,2)';
+		$sql .= " AND m.type_operation IN ('opening','manual_cash_in','manual_cash_out','adjustment') ORDER BY m.rowid FOR UPDATE";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			if ($manageTransaction) {
+				$this->db->rollback();
+			}
+			return $this->fail($this->db->lasterror());
 		}
 		while ($movement = $this->db->fetch_object($resql)) {
 			$mapping = $this->findAccountingMapping($movement);
@@ -870,6 +933,12 @@ class SofAgenceOperations
 					$this->db->rollback();
 				}
 				return $this->fail('Mapping comptable absent pour '.$movement->type_operation.' / '.$movement->payment_mode.'.');
+			}
+			if (trim((string) $mapping->journal_code) === '' || trim((string) $mapping->account_debit) === '' || trim((string) $mapping->account_credit) === '') {
+				if ($manageTransaction) {
+					$this->db->rollback();
+				}
+				return $this->fail('Mapping comptable incomplet pour '.$movement->type_operation.' / '.$movement->payment_mode.'.');
 			}
 			$debitAccount = $movement->direction === 'credit' ? $mapping->account_debit : $mapping->account_credit;
 			$creditAccount = $movement->direction === 'credit' ? $mapping->account_credit : $mapping->account_debit;
@@ -880,7 +949,10 @@ class SofAgenceOperations
 				}
 				return -1;
 			}
-			if ($this->updateRow('sof_caisse_mouvement', (int) $movement->rowid, array('accounting_status' => 4), $user) < 0) {
+			if ($this->updateRow('sof_caisse_mouvement', (int) $movement->rowid, array(
+				'accounting_status' => 4, 'accounting_attempts' => (int) $movement->accounting_attempts + 1,
+				'accounting_error' => null, 'date_accounting_attempt' => dol_now(),
+			), $user) < 0) {
 				if ($manageTransaction) {
 					$this->db->rollback();
 				}
@@ -888,8 +960,42 @@ class SofAgenceOperations
 			}
 		}
 		if ($manageTransaction) {
+			if ($this->updateRow('sof_caisse_session', (int) $session->id, array(
+				'status' => SofCaisseSession::STATUS_ACCOUNTED, 'accounting_status' => 4,
+				'accounting_attempts' => (int) $session->accounting_attempts + 1, 'accounting_error' => null,
+				'date_accounting' => dol_now(), 'fk_user_accounting' => (int) $user->id,
+			), $user, SofCaisseSession::STATUS_VALIDATED) < 0) {
+				$this->db->rollback();
+				return -1;
+			}
 			$this->db->commit();
 		}
+		return 1;
+	}
+
+	/** Persist a rejected accounting attempt so the same validated session can be retried. */
+	private function markAccountingFailure(User $user, SofCaisseSession $session, $message)
+	{
+		global $conf;
+		$message = substr(trim((string) $message), 0, 4000);
+		$this->db->begin();
+		$sql = 'UPDATE '.$this->db->prefix().'sof_caisse_session SET accounting_status = 2, accounting_attempts = COALESCE(accounting_attempts,0) + 1,';
+		$sql .= " accounting_error = '".$this->db->escape($message)."', fk_user_accounting = ".((int) $user->id).', tms = CURRENT_TIMESTAMP';
+		$sql .= ' WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $session->id).' AND status = '.SofCaisseSession::STATUS_VALIDATED;
+		if (!$this->db->query($sql)) {
+			$this->db->rollback();
+			return $this->fail($this->db->lasterror());
+		}
+		$sql = 'UPDATE '.$this->db->prefix().'sof_caisse_mouvement SET accounting_status = 2, accounting_attempts = COALESCE(accounting_attempts,0) + 1,';
+		$sql .= " accounting_error = '".$this->db->escape($message)."', date_accounting_attempt = CURRENT_TIMESTAMP, fk_user_modif = ".((int) $user->id).', tms = CURRENT_TIMESTAMP';
+		$sql .= ' WHERE entity = '.((int) $conf->entity).' AND fk_session = '.((int) $session->id).' AND status = 1 AND accounting_status IN (0,2)';
+		if (!$this->db->query($sql)) {
+			$this->db->rollback();
+			return $this->fail($this->db->lasterror());
+		}
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+		SofAgenceService::logAudit($this->db, $user, 'SOF_ACCOUNTING_REJECT', $session, null, array('error' => $message), $message);
+		$this->db->commit();
 		return 1;
 	}
 
@@ -1250,10 +1356,11 @@ class SofAgenceOperations
 		$line->journal_label = $mapping->journal_code;
 		$line->fk_user_author = (int) $user->id;
 		$result = $line->create($user, 1);
-		if ($result <= 0) {
+		// Dolibarr BookKeeping::create returns 0 on success and a negative value on failure.
+		if ($result < 0) {
 			return $this->fail($line->error ?: 'Échec de création de la ligne comptable.', $line->errors);
 		}
-		return $result;
+		return !empty($line->id) ? (int) $line->id : 1;
 	}
 
 	/** Create a refund request after checking the paid origin and cumulative cap. */
@@ -1578,10 +1685,12 @@ class SofAgenceOperations
 	/** Start a surprise control and really freeze the related open session. */
 	public function startControl(User $user, $controlId)
 	{
-		if (!$this->hasRight($user, 'controle', 'create')) {
-			return $this->fail('Permission refusée pour démarrer un contrôle.');
+		global $conf;
+		if (!$this->hasRight($user, 'controle', 'create') || !$this->hasRight($user, 'controle', 'freeze')) {
+			return $this->fail('Les droits de contrôle et de gel sont requis pour démarrer un contrôle.');
 		}
 		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaissecontrole.class.php';
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 		$control = new SofCaisseControle($this->db);
 		if ($control->fetch((int) $controlId) <= 0 || (int) $control->status !== 0) {
 			return $this->fail('Le contrôle est introuvable ou déjà démarré.');
@@ -1589,20 +1698,48 @@ class SofAgenceOperations
 		if (!$this->ensureAgencyScope($user, (int) $control->fk_agence, 'control_start', 0, (int) $control->fk_das)) {
 			return -1;
 		}
-		$sessionId = (int) $control->fk_session;
-		if ($sessionId <= 0 && (int) $control->fk_caisse > 0) {
-			$sql = 'SELECT rowid FROM '.$this->db->prefix().'sof_caisse_session WHERE fk_caisse = '.((int) $control->fk_caisse).' AND status IN (1,2,3) ORDER BY date_opening DESC LIMIT 1';
+		$this->db->begin();
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_caisse_controle WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $controlId).' AND status = 0 FOR UPDATE';
+		$resql = $this->db->query($sql);
+		$lockedControl = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$lockedControl) {
+			$this->db->rollback();
+			return $this->fail('Le contrôle a déjà été démarré par une autre requête.');
+		}
+		$sessionId = (int) $lockedControl->fk_session;
+		if ($sessionId <= 0 && (int) $lockedControl->fk_caisse > 0) {
+			$sql = 'SELECT rowid FROM '.$this->db->prefix().'sof_caisse_session WHERE entity = '.((int) $conf->entity);
+			$sql .= ' AND fk_caisse = '.((int) $lockedControl->fk_caisse).' AND status IN (1,2,3) ORDER BY date_opening DESC LIMIT 1';
 			$resql = $this->db->query($sql);
 			$sessionId = $resql && ($obj = $this->db->fetch_object($resql)) ? (int) $obj->rowid : 0;
 		}
-		if ($sessionId <= 0) {
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_caisse_session WHERE entity = '.((int) $conf->entity).' AND rowid = '.$sessionId.' AND status IN (1,2,3) FOR UPDATE';
+		$resql = $sessionId > 0 ? $this->db->query($sql) : false;
+		$session = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$session) {
+			$this->db->rollback();
 			return $this->fail('Aucune session active à contrôler.');
 		}
+		if ((int) $session->fk_agence !== (int) $lockedControl->fk_agence
+			|| (!empty($lockedControl->fk_caisse) && (int) $session->fk_caisse !== (int) $lockedControl->fk_caisse)
+			|| (!empty($lockedControl->fk_das) && (int) $session->fk_das !== (int) $lockedControl->fk_das)) {
+			$this->db->rollback();
+			return $this->fail('Le contrôle, la session, la caisse et le DAS ne partagent pas le même contexte.');
+		}
+		$contextError = SofAgenceService::validateAgencyCashDeskDas($this->db, (int) $session->fk_agence, (int) $session->fk_caisse, (int) $session->fk_das, true);
+		if ($contextError !== '') {
+			$this->db->rollback();
+			return $this->fail($contextError);
+		}
 		$theoretical = $this->recalculateSession($sessionId);
-		$this->db->begin();
+		if ($theoretical < 0) {
+			$this->db->rollback();
+			return -1;
+		}
 		if ($this->transitionSession($user, $sessionId, 'freeze') < 0
 			|| $this->updateRow('sof_caisse_controle', (int) $control->id, array(
 				'fk_session' => $sessionId, 'fk_user_controller' => (int) $user->id,
+				'previous_session_status' => (int) $session->status,
 				'date_start' => dol_now(), 'freeze_enabled' => 1,
 				'theoretical_amount' => $theoretical, 'status' => 1,
 			), $user, 0) < 0) {
@@ -1617,8 +1754,8 @@ class SofAgenceOperations
 	public function completeControl(User $user, $controlId, $physicalAmount, $observations = '')
 	{
 		global $conf;
-		if (!$this->hasRight($user, 'controle', 'create')) {
-			return $this->fail('Permission refusée pour terminer un contrôle.');
+		if (!$this->hasRight($user, 'controle', 'create') || !$this->hasRight($user, 'controle', 'freeze')) {
+			return $this->fail('Les droits de contrôle et de gel sont requis pour terminer un contrôle.');
 		}
 		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaissecontrole.class.php';
 		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaisseecart.class.php';
@@ -1633,37 +1770,110 @@ class SofAgenceOperations
 		if ($physicalAmount < 0) {
 			return $this->fail('Le montant physique est invalide.');
 		}
-		$theoretical = $this->recalculateSession((int) $control->fk_session);
-		$gap = price2num($physicalAmount - $theoretical);
 		$this->db->begin();
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_caisse_controle WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $controlId).' AND status = 1 FOR UPDATE';
+		$resql = $this->db->query($sql);
+		$lockedControl = $resql ? $this->db->fetch_object($resql) : null;
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_caisse_session WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $control->fk_session).' FOR UPDATE';
+		$resql = $lockedControl ? $this->db->query($sql) : false;
+		$session = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$lockedControl || !$session || (int) $session->status !== 4 || empty($session->freeze_status)) {
+			$this->db->rollback();
+			return $this->fail('Le contrôle ou le gel de caisse a été modifié par une autre requête.');
+		}
+		$theoretical = $this->recalculateSession((int) $lockedControl->fk_session);
+		if ($theoretical < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		$gap = price2num($physicalAmount - $theoretical);
 		if (abs($gap) >= 0.01) {
 			$gapObject = new SofCaisseEcart($this->db);
 			$gapObject->entity = (int) $conf->entity;
 			$gapObject->ref = $this->generateRef('ECA', 'sof_caisse_ecart');
-			$gapObject->fk_session = (int) $control->fk_session;
-			$gapObject->fk_controle = (int) $control->id;
-			$gapObject->fk_agence = (int) $control->fk_agence;
-			$gapObject->fk_caisse = (int) $control->fk_caisse;
+			$gapObject->fk_session = (int) $lockedControl->fk_session;
+			$gapObject->fk_controle = (int) $lockedControl->rowid;
+			$gapObject->fk_agence = (int) $lockedControl->fk_agence;
+			$gapObject->fk_caisse = (int) $lockedControl->fk_caisse;
 			$gapObject->gap_type = $gap > 0 ? 'surplus' : 'shortage';
 			$gapObject->theoretical_amount = $theoretical;
 			$gapObject->physical_amount = $physicalAmount;
 			$gapObject->gap_amount = $gap;
 			$gapObject->severity = $this->gapSeverity(abs($gap));
-			$gapObject->fk_user_cashier = (int) $control->fk_user_cashier ?: null;
+			$gapObject->fk_user_cashier = (int) $lockedControl->fk_user_cashier ?: null;
 			$gapObject->status = 0;
 			if ($gapObject->create($user) <= 0) {
 				$this->db->rollback();
 				return $this->fail($gapObject->error ?: "Échec d'enregistrement de l'écart.", $gapObject->errors);
 			}
 		}
+		$restoreStatus = in_array((int) $lockedControl->previous_session_status, array(1, 2, 3), true) ? (int) $lockedControl->previous_session_status : 2;
 		if ($this->updateRow('sof_caisse_controle', (int) $control->id, array(
 			'date_end' => dol_now(), 'theoretical_amount' => $theoretical,
 			'physical_amount' => $physicalAmount, 'gap_amount' => $gap,
-			'observations' => trim((string) $observations), 'status' => 2,
-		), $user, 1) < 0 || $this->transitionSession($user, (int) $control->fk_session, 'unfreeze') < 0) {
+			'observations' => trim((string) $observations), 'freeze_enabled' => 0, 'status' => 2,
+		), $user, 1) < 0 || $this->updateRow('sof_caisse_session', (int) $control->fk_session, array('status' => $restoreStatus, 'freeze_status' => 0), $user, 4) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
+		$this->db->commit();
+		return 1;
+	}
+
+	/** Resolve a cash gap with severity-aware segregation of duties and traceability. */
+	public function resolveCashGap(User $user, $gapId, $reason, $decision)
+	{
+		global $conf;
+		if (!$this->hasRight($user, 'ecart', 'manage')) {
+			return $this->fail('Permission refusée pour traiter cet écart.');
+		}
+		$reason = trim((string) $reason);
+		$decision = trim((string) $decision);
+		if ($reason === '' || $decision === '') {
+			return $this->fail('La justification et la décision de traitement sont obligatoires.');
+		}
+
+		$this->db->begin();
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_caisse_ecart WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $gapId).' FOR UPDATE';
+		$resql = $this->db->query($sql);
+		$gap = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$gap || (int) $gap->status >= 3) {
+			$this->db->rollback();
+			return $this->fail('Écart introuvable ou déjà traité.');
+		}
+		if (!$this->ensureAgencyScope($user, (int) $gap->fk_agence, 'cash_gap_resolve', abs((float) $gap->gap_amount))) {
+			$this->db->rollback();
+			return -1;
+		}
+		$severity = strtolower((string) $gap->severity);
+		if (in_array($severity, array('major', 'critical'), true) && empty($user->admin)
+			&& !getDolGlobalInt('AGENCE_ALLOW_SELF_APPROVAL') && (int) $gap->fk_user_cashier === (int) $user->id) {
+			$this->db->rollback();
+			return $this->fail('Un écart majeur ou critique doit être traité par un autre utilisateur que le caissier concerné.');
+		}
+		if ($severity === 'critical' && empty($user->admin)
+			&& !$this->hasRight($user, 'session', 'validate') && !$this->hasRight($user, 'audit', 'read')) {
+			$this->db->rollback();
+			return $this->fail('Un écart critique exige également un droit de supervision ou d’audit.');
+		}
+
+		$updates = array(
+			'reason' => $reason, 'treatment_decision' => $decision,
+			'date_treatment' => dol_now(), 'fk_user_validator' => (int) $user->id, 'status' => 3,
+		);
+		if ($this->updateRow('sof_caisse_ecart', (int) $gapId, $updates, $user, (int) $gap->status) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		$sql = 'UPDATE '.$this->db->prefix().'sof_caisse_alerte SET status = 2, date_close = CURRENT_TIMESTAMP,';
+		$sql .= ' fk_user_close = '.((int) $user->id).', dedup_key = NULL WHERE entity = '.((int) $conf->entity);
+		$sql .= " AND object_type = 'ecart' AND object_id = ".((int) $gapId).' AND status < 2';
+		if (!$this->db->query($sql)) {
+			$this->db->rollback();
+			return $this->fail($this->db->lasterror());
+		}
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+		SofAgenceService::logAudit($this->db, $user, 'SOF_CASH_GAP_RESOLVE', $gap, $this->snapshot($gap), $updates, $reason);
 		$this->db->commit();
 		return 1;
 	}
@@ -2039,26 +2249,84 @@ class SofAgenceOperations
 			return $this->fail('Permission refusée pour gérer le paiement différé.');
 		}
 		$action = strtolower((string) $action);
-		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_paiement_differe WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $recordId);
+		$reason = trim((string) $reason);
+		$this->db->begin();
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_paiement_differe WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $recordId).' FOR UPDATE';
 		$resql = $this->db->query($sql);
 		$record = $resql ? $this->db->fetch_object($resql) : null;
 		if (!$record) {
+			$this->db->rollback();
 			return $this->fail('Paiement différé introuvable.');
 		}
 		if (!$this->ensureAgencyScope($user, (int) $record->fk_agence, 'deferred_payment_'.$action, (float) $record->remaining_amount, (int) $record->fk_das)) {
+			$this->db->rollback();
 			return -1;
 		}
+		$old = clone $record;
+		$updates = array();
 		if ($action === 'validate' && (int) $record->status === 0) {
-			return $this->updateRow('sof_paiement_differe', (int) $recordId, array('status' => 1), $user, (int) $record->status);
+			if ((float) $record->expected_amount <= 0) {
+				$this->db->rollback();
+				return $this->fail('Le montant attendu doit être strictement positif.');
+			}
+			$updates = array('status' => 1, 'date_validation' => dol_now(), 'fk_user_validator' => (int) $user->id);
+		} elseif ($action === 'dispute' && in_array((int) $record->status, array(1, 2, 3, 5), true) && $reason !== '') {
+			$updates = array('dispute_reason' => $reason, 'date_dispute' => dol_now(), 'fk_user_dispute' => (int) $user->id, 'status' => 6);
+		} elseif ($action === 'regularize' && (int) $record->status === 6 && $reason !== '') {
+			$balance = $this->deferredPaymentBalance($record);
+			$updates = array(
+				'paid_amount' => $balance['paid'], 'remaining_amount' => $balance['remaining'], 'status' => $balance['status'],
+				'regularization_reason' => $reason, 'date_regularization' => dol_now(), 'fk_user_regularization' => (int) $user->id,
+			);
+		} elseif ($action === 'close' && (int) $record->status === 4 && $reason !== '') {
+			$balance = $this->deferredPaymentBalance($record);
+			if ($balance['remaining'] > 0.01) {
+				$this->db->rollback();
+				return $this->fail('Le paiement différé ne peut être clôturé tant que son solde n’est pas nul.');
+			}
+			$updates = array(
+				'paid_amount' => $balance['paid'], 'remaining_amount' => 0,
+				'closure_reason' => $reason, 'date_closure' => dol_now(), 'fk_user_closure' => (int) $user->id, 'status' => 7,
+			);
+		} else {
+			$this->db->rollback();
+			return $this->fail('Transition interdite depuis le statut actuel ou motif obligatoire absent.');
 		}
-		if ($action === 'dispute' && !in_array((int) $record->status, array(4, 7, 9), true) && trim((string) $reason) !== '') {
-			return $this->updateRow('sof_paiement_differe', (int) $recordId, array('dispute_reason' => trim((string) $reason), 'status' => 6), $user, (int) $record->status);
+
+		$result = $this->updateRow('sof_paiement_differe', (int) $recordId, $updates, $user, (int) $record->status);
+		if ($result < 0) {
+			$this->db->rollback();
+			return -1;
 		}
-		if ($action === 'close' && !in_array((int) $record->status, array(4, 7, 9), true) && trim((string) $reason) !== '') {
-			$this->synchronizeDeferredPayments($user);
-			return $this->updateRow('sof_paiement_differe', (int) $recordId, array('closure_reason' => trim((string) $reason), 'status' => 7), $user, (int) $record->status);
+		$record->rowid = (int) $recordId;
+		foreach ($updates as $field => $value) {
+			$record->$field = $value;
 		}
-		return $this->fail('Transition invalide ou motif obligatoire absent.');
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+		SofAgenceService::logAudit($this->db, $user, 'SOF_DEFERRED_'.strtoupper($action), $record, $this->snapshot($old), $this->snapshot($record), $reason);
+		$this->db->commit();
+		return 1;
+	}
+
+	/** Compute the authoritative deferred balance without mutating a disputed row. */
+	private function deferredPaymentBalance($record)
+	{
+		global $conf;
+		$remaining = max(0, (float) $record->expected_amount);
+		if (!empty($record->fk_facture)) {
+			$sql = 'SELECT total_ttc FROM '.$this->db->prefix().'facture WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $record->fk_facture);
+			$resql = $this->db->query($sql);
+			$invoice = $resql ? $this->db->fetch_object($resql) : null;
+			if ($invoice) {
+				$remaining = min($remaining, max(0, $this->invoiceRemaining((int) $record->fk_facture, (float) $invoice->total_ttc)));
+			}
+		}
+		$paid = max(0, price2num((float) $record->expected_amount - $remaining));
+		$status = $remaining <= 0.01 ? 4 : ($paid > 0 ? 3 : 1);
+		if ($status !== 4 && !empty($record->expected_payment_date) && $this->db->jdate($record->expected_payment_date) < dol_now()) {
+			$status = 5;
+		}
+		return array('paid' => $paid, 'remaining' => price2num($remaining), 'status' => $status);
 	}
 
 	/** Validate a credit-note balance tracked by Agence. */
@@ -2068,25 +2336,42 @@ class SofAgenceOperations
 		if (!$this->hasRight($user, 'avoir', 'validate')) {
 			return $this->fail("Permission refusée pour valider l'avoir.");
 		}
-		$sql = 'SELECT a.*, f.type facture_type FROM '.$this->db->prefix().'sof_avoir_tracking a';
+		$this->db->begin();
+		$sql = 'SELECT a.*, f.type facture_type, f.fk_statut facture_status, f.total_ttc facture_total, f.fk_soc facture_soc FROM '.$this->db->prefix().'sof_avoir_tracking a';
 		$sql .= ' JOIN '.$this->db->prefix().'facture f ON f.rowid = a.fk_facture_avoir';
-		$sql .= ' WHERE a.entity = '.((int) $conf->entity).' AND a.rowid = '.((int) $trackingId);
+		$sql .= ' WHERE a.entity = '.((int) $conf->entity).' AND f.entity = '.((int) $conf->entity).' AND a.rowid = '.((int) $trackingId).' FOR UPDATE';
 		$resql = $this->db->query($sql);
 		$tracking = $resql ? $this->db->fetch_object($resql) : null;
-		if (!$tracking || !empty($tracking->validation_status) || (int) $tracking->facture_type !== 2 || (float) $tracking->initial_amount <= 0) {
+		if (!$tracking || !empty($tracking->validation_status) || (int) $tracking->facture_type !== 2
+			|| !in_array((int) $tracking->facture_status, array(1, 2), true) || (float) $tracking->initial_amount <= 0
+			|| (int) $tracking->fk_soc !== (int) $tracking->facture_soc
+			|| (float) $tracking->initial_amount > abs((float) $tracking->facture_total) + 0.01) {
+			$this->db->rollback();
 			return $this->fail("Le suivi doit référencer un avoir Dolibarr valide et non encore validé.");
 		}
 		if (!$this->ensureAgencyScope($user, (int) $tracking->fk_agence, 'credit_validate', (float) $tracking->initial_amount, (int) $tracking->fk_das)) {
+			$this->db->rollback();
 			return -1;
 		}
 		$used = max(0, (float) $tracking->used_amount);
 		if ($used > (float) $tracking->initial_amount + 0.01) {
+			$this->db->rollback();
 			return $this->fail("Le montant déjà consommé dépasse le montant initial de l'avoir.");
 		}
-		return $this->updateRow('sof_avoir_tracking', (int) $trackingId, array(
+		$updates = array(
 			'used_amount' => $used, 'remaining_amount' => (float) $tracking->initial_amount - $used,
-			'validation_status' => 1, 'use_status' => $used > 0 ? 1 : 0, 'status' => 1,
-		), $user, (int) $tracking->status);
+			'validation_status' => 1, 'date_validation' => dol_now(), 'fk_user_validator' => (int) $user->id,
+			'use_status' => $used > 0 ? 1 : 0, 'status' => 1,
+		);
+		$result = $this->updateRow('sof_avoir_tracking', (int) $trackingId, $updates, $user, (int) $tracking->status);
+		if ($result < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+		SofAgenceService::logAudit($this->db, $user, 'SOF_CREDIT_VALIDATE', $tracking, $this->snapshot($tracking), $updates);
+		$this->db->commit();
+		return 1;
 	}
 
 	/** Consume an incremental amount from a validated credit-note balance. */
@@ -2117,8 +2402,13 @@ class SofAgenceOperations
 		$newRemaining = max(0, price2num((float) $tracking->initial_amount - $newUsed));
 		$result = $this->updateRow('sof_avoir_tracking', (int) $trackingId, array(
 			'used_amount' => $newUsed, 'remaining_amount' => $newRemaining,
+			'date_last_use' => dol_now(), 'fk_user_last_use' => (int) $user->id,
 			'use_status' => $newRemaining <= 0.01 ? 2 : 1, 'status' => $newRemaining <= 0.01 ? 2 : 1,
-		), $user);
+		), $user, (int) $tracking->status);
+		if ($result > 0) {
+			require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+			SofAgenceService::logAudit($this->db, $user, 'SOF_CREDIT_USE', $tracking, $this->snapshot($tracking), array('amount' => $amount, 'used_amount' => $newUsed, 'remaining_amount' => $newRemaining));
+		}
 		$result < 0 ? $this->db->rollback() : $this->db->commit();
 		return $result;
 	}
@@ -2127,31 +2417,17 @@ class SofAgenceOperations
 	public function synchronizeDeferredPayments(User $user = null)
 	{
 		global $conf;
-		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_paiement_differe WHERE entity = '.((int) $conf->entity).' AND status NOT IN (4,7,9)';
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_paiement_differe WHERE entity = '.((int) $conf->entity).' AND status IN (1,2,3,5)';
 		$resql = $this->db->query($sql);
 		if (!$resql) {
 			return $this->fail($this->db->lasterror());
 		}
 		$count = 0;
 		while ($record = $this->db->fetch_object($resql)) {
-			$remaining = (float) $record->expected_amount;
-			if (!empty($record->fk_facture)) {
-				$sqlInvoice = 'SELECT total_ttc FROM '.$this->db->prefix().'facture WHERE rowid = '.((int) $record->fk_facture);
-				$rInvoice = $this->db->query($sqlInvoice);
-				$invoice = $rInvoice ? $this->db->fetch_object($rInvoice) : null;
-				if ($invoice) {
-					$invoiceRemaining = $this->invoiceRemaining((int) $record->fk_facture, (float) $invoice->total_ttc);
-					$remaining = min((float) $record->expected_amount, $invoiceRemaining);
-				}
-			}
-			$paid = max(0, (float) $record->expected_amount - $remaining);
-			$status = $remaining <= 0.01 ? 4 : ($paid > 0 ? 3 : 1);
-			if ($status !== 4 && !empty($record->expected_payment_date) && $this->db->jdate($record->expected_payment_date) < dol_now()) {
-				$status = 5;
-			}
+			$balance = $this->deferredPaymentBalance($record);
 			$actor = $user instanceof User ? $user : $GLOBALS['user'];
 			if ($this->updateRow('sof_paiement_differe', (int) $record->rowid, array(
-				'paid_amount' => $paid, 'remaining_amount' => $remaining, 'status' => $status,
+				'paid_amount' => $balance['paid'], 'remaining_amount' => $balance['remaining'], 'status' => $balance['status'],
 			), $actor) > 0) {
 				$count++;
 			}
@@ -2240,8 +2516,12 @@ class SofAgenceOperations
 		$tracking->remaining_amount = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? $amount : 0;
 		$tracking->reason = $refund->reason;
 		$tracking->validation_status = 1;
-		$tracking->use_status = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? 0 : 1;
-		$tracking->status = 1;
+		$tracking->date_validation = dol_now();
+		$tracking->fk_user_validator = (int) $user->id;
+		$tracking->use_status = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? 0 : 2;
+		$tracking->date_last_use = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? null : dol_now();
+		$tracking->fk_user_last_use = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? null : (int) $user->id;
+		$tracking->status = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? 1 : 2;
 		$id = $tracking->create($user);
 		return $id > 0 ? $id : $this->fail($tracking->error ?: "Échec du suivi d'avoir.", $tracking->errors);
 	}
@@ -2263,16 +2543,35 @@ class SofAgenceOperations
 
 	private function hasRight(User $user, $object, $action)
 	{
-		return !empty($user->admin) || $user->hasRight('agence', $object, $action);
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+		if (!SofAgenceService::isActiveUser($this->db, $user)) {
+			return false;
+		}
+		if (!empty($user->admin)) {
+			return true;
+		}
+		// Always authorize against a fresh database view so a revoked permission
+		// takes effect on the next request, without clearing rights from other
+		// Dolibarr modules on the caller's session user object.
+		$authorizationUser = new User($this->db);
+		if ($authorizationUser->fetch((int) $user->id) <= 0 || empty($authorizationUser->statut)) {
+			return false;
+		}
+		$authorizationUser->loadRights('agence', 1);
+		return (bool) $authorizationUser->hasRight('agence', $object, $action);
 	}
 
 	/** Enforce the agency/DAS perimeter at the business-service boundary. */
 	private function ensureAgencyScope(User $user, $fkAgence, $operationType = '', $amount = 0.0, $fkDas = 0)
 	{
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+		if (!SofAgenceService::isActiveUser($this->db, $user)) {
+			$this->fail("Le compte utilisateur est désactivé ou n'est plus valide.");
+			return false;
+		}
 		if (!empty($user->admin)) {
 			return true;
 		}
-		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 		if (!SofAgenceService::userCanAccessAgency($this->db, $user, (int) $fkAgence, (string) $operationType, (float) $amount, (int) $fkDas)) {
 			$this->fail("L'opération demandée est hors du périmètre agence ou DAS de l'utilisateur.");
 			return false;

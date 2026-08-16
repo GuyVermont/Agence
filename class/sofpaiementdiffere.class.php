@@ -42,7 +42,16 @@ class SofPaiementDiffere extends SofCommonObject
 		'expected_payment_date' => array('type' => 'date', 'label' => 'ExpectedPaymentDate'),
 		'last_reminder_date' => array('type' => 'date', 'label' => 'LastReminderDate'),
 		'dispute_reason' => array('type' => 'text', 'label' => 'DisputeReason'),
+		'date_validation' => array('type' => 'datetime', 'label' => 'ValidationDate'),
+		'fk_user_validator' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'Validator'),
+		'date_dispute' => array('type' => 'datetime', 'label' => 'DisputeDate'),
+		'fk_user_dispute' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'DisputeUser'),
+		'regularization_reason' => array('type' => 'text', 'label' => 'RegularizationReason'),
+		'date_regularization' => array('type' => 'datetime', 'label' => 'RegularizationDate'),
+		'fk_user_regularization' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'RegularizationUser'),
 		'closure_reason' => array('type' => 'text', 'label' => 'ClosureReason'),
+		'date_closure' => array('type' => 'datetime', 'label' => 'ClosureDate'),
+		'fk_user_closure' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'ClosureUser'),
 		'status' => array('type' => 'integer', 'label' => 'Status', 'notnull' => 1, 'default' => 0, 'index' => 1, 'noteditable' => 1),
 	);
 }

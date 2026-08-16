@@ -105,11 +105,15 @@ function agence_get_requested_object_key($default, $allowed = array())
  */
 function agence_user_has_one_permission($perms)
 {
-	global $user;
+	global $db, $user;
 
-	if (empty($perms)) {
+	if (empty($perms) || !SofAgenceService::isActiveUser($db, $user)) {
 		return false;
 	}
+	if (!empty($user->admin)) {
+		return true;
+	}
+	$user->loadRights('agence', 1);
 	foreach ($perms as $perm) {
 		if (!empty($perm[0]) && !empty($perm[1]) && !empty($perm[2]) && $user->hasRight($perm[0], $perm[1], $perm[2])) {
 			return true;

@@ -26,12 +26,16 @@ class SofAgenceService
 	 */
 	public static function allowedAgencyIds(DoliDB $db, User $user)
 	{
+		global $conf;
+		if (!self::isActiveUser($db, $user)) {
+			return array();
+		}
 		if (!empty($user->admin)) {
 			return null;
 		}
 		$nowSql = "'".$db->escape($db->idate(dol_now()))."'";
 		$sql = 'SELECT scope_type, scope_value FROM '.$db->prefix().'sof_role_transversal';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_role_transversal').') AND fk_user = '.((int) $user->id).' AND status = 1';
+		$sql .= ' WHERE entity = '.((int) $conf->entity).' AND fk_user = '.((int) $user->id).' AND status = 1';
 		$sql .= ' AND (date_start IS NULL OR date_start <= '.$nowSql.')';
 		$sql .= ' AND (date_end IS NULL OR date_end >= '.$nowSql.')';
 		$resql = $db->query($sql);
@@ -48,7 +52,7 @@ class SofAgenceService
 		}
 
 		$sql = 'SELECT fk_agence FROM '.$db->prefix().'sof_agence_user';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_agence_user').') AND fk_user = '.((int) $user->id).' AND status = 1';
+		$sql .= ' WHERE entity = '.((int) $conf->entity).' AND fk_user = '.((int) $user->id).' AND status = 1';
 		$sql .= ' AND (date_start IS NULL OR date_start <= '.$nowSql.')';
 		$sql .= ' AND (date_end IS NULL OR date_end >= '.$nowSql.')';
 		$resql = $db->query($sql);
@@ -314,13 +318,17 @@ class SofAgenceService
 	 */
 	public static function userCanAccessAgency(DoliDB $db, User $user, $fkAgence, $operationType = '', $amount = 0.0, $fkDas = 0)
 	{
+		global $conf;
+		if (!self::isActiveUser($db, $user)) {
+			return false;
+		}
 		if ($fkAgence <= 0 && $fkDas <= 0) {
 			return true;
 		}
 
 		$nowSql = "'".$db->escape($db->idate(dol_now()))."'";
 		$sql = 'SELECT rowid FROM '.$db->prefix().'sof_agence_user';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_agence_user').')';
+		$sql .= ' WHERE entity = '.((int) $conf->entity);
 		$sql .= ' AND fk_user = '.((int) $user->id);
 		$sql .= ' AND status = 1';
 		$sql .= ' AND (date_start IS NULL OR date_start <= '.$nowSql.')';
@@ -342,7 +350,7 @@ class SofAgenceService
 		}
 
 		$sql = 'SELECT rowid FROM '.$db->prefix().'sof_role_transversal';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_role_transversal').')';
+		$sql .= ' WHERE entity = '.((int) $conf->entity);
 		$sql .= ' AND fk_user = '.((int) $user->id);
 		$sql .= ' AND status = 1';
 		$sql .= ' AND (date_start IS NULL OR date_start <= '.$nowSql.')';
@@ -359,6 +367,22 @@ class SofAgenceService
 		return ($resql && $db->num_rows($resql) > 0);
 	}
 
+	/** Re-read the account state so a deactivation takes effect during an existing session. */
+	public static function isActiveUser(DoliDB $db, User $user)
+	{
+		if (empty($user->id)) {
+			return false;
+		}
+		$sql = 'SELECT statut, admin FROM '.$db->prefix().'user WHERE rowid = '.((int) $user->id).' LIMIT 1';
+		$resql = $db->query($sql);
+		$row = $resql ? $db->fetch_object($resql) : null;
+		if ($row) {
+			$user->statut = (int) $row->statut;
+			$user->admin = (int) $row->admin;
+		}
+		return $row && (int) $row->statut === 1;
+	}
+
 	/**
 	 * Return an open session for a cash desk.
 	 *
@@ -369,12 +393,13 @@ class SofAgenceService
 	 */
 	public static function getOpenSession(DoliDB $db, $fkCaisse, $fkUser = 0)
 	{
+		global $conf;
 		if ($fkCaisse <= 0) {
 			return 0;
 		}
 
 		$sql = 'SELECT rowid FROM '.$db->prefix().'sof_caisse_session';
-		$sql .= ' WHERE entity IN ('.getEntity('sof_caisse_session').')';
+		$sql .= ' WHERE entity = '.((int) $conf->entity);
 		$sql .= ' AND fk_caisse = '.((int) $fkCaisse);
 		$sql .= ' AND status IN (1,2,3,4,5)';
 		if ($fkUser > 0) {

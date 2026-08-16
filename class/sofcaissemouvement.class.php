@@ -38,5 +38,8 @@ class SofCaisseMouvement extends SofCommonObject
 		'justification_ref' => array('type' => 'varchar(255)', 'label' => 'Justification'),
 		'status' => array('type' => 'integer', 'label' => 'Status', 'notnull' => 1, 'default' => 1, 'arrayofkeyval' => array(0 => 'Canceled', 1 => 'Validated')),
 		'accounting_status' => array('type' => 'integer', 'label' => 'AccountingStatus', 'notnull' => 1, 'default' => 0),
+		'accounting_attempts' => array('type' => 'integer', 'label' => 'AccountingAttempts', 'notnull' => 1, 'default' => 0),
+		'accounting_error' => array('type' => 'text', 'label' => 'AccountingError'),
+		'date_accounting_attempt' => array('type' => 'datetime', 'label' => 'AccountingAttemptDate'),
 	);
 }

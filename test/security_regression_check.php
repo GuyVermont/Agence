@@ -41,7 +41,9 @@ function agence_security_assert($condition, $label)
 }
 
 // CLI bootstrap may not select a user. Load the first administrator for
-// fixture creation, then clone it as a non-admin authorization subject.
+// fixture creation, then load a real non-admin authorization subject. A clone
+// of an administrator is intentionally not used: production authorization now
+// re-reads the database account state on every sensitive operation.
 if (empty($GLOBALS['user']->id)) {
 	$resql = $db->query('SELECT rowid FROM '.$db->prefix().'user WHERE admin = 1 AND statut = 1 ORDER BY rowid LIMIT 1');
 	$row = $resql ? $db->fetch_object($resql) : null;
@@ -161,8 +163,17 @@ $dasDenied->label = 'Disallowed scope regression DAS';
 $dasDenied->status = SofDas::STATUS_ACTIVE;
 $dasDeniedId = $dasDenied->create($fixtureAdmin, 1);
 
-$scopedUser = clone $fixtureAdmin;
-$scopedUser->admin = 0;
+$resql = $db->query('SELECT rowid FROM '.$db->prefix().'user WHERE admin = 0 AND statut = 1 ORDER BY rowid LIMIT 1');
+$scopedUserRow = $resql ? $db->fetch_object($resql) : null;
+$scopedUser = new User($db);
+if ($scopedUserRow) {
+	$scopedUser->fetch((int) $scopedUserRow->rowid);
+}
+$sql = 'INSERT INTO '.$db->prefix().'user_rights (entity, fk_user, fk_id) SELECT '.((int) $conf->entity).', '.((int) $scopedUser->id).', r.id';
+$sql .= ' FROM '.$db->prefix()."rights_def r WHERE r.entity = ".((int) $conf->entity)." AND r.module = 'agence' AND r.perms = 'session' AND r.subperms = 'close'";
+$sql .= ' AND NOT EXISTS (SELECT 1 FROM '.$db->prefix().'user_rights ur WHERE ur.entity = '.((int) $conf->entity).' AND ur.fk_user = '.((int) $scopedUser->id).' AND ur.fk_id = r.id)';
+$db->query($sql);
+$scopedUser->getrights('', 1);
 $db->query('DELETE FROM '.$db->prefix().'sof_role_transversal WHERE entity = '.((int) $conf->entity).' AND fk_user = '.((int) $scopedUser->id));
 $db->query('DELETE FROM '.$db->prefix().'sof_agence_user WHERE entity = '.((int) $conf->entity).' AND fk_user = '.((int) $scopedUser->id));
 

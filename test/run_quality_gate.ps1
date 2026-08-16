@@ -35,6 +35,9 @@ Write-Output 'JavaScript syntax: PASS'
 $tests = @(
 	'quick_check.php',
 	'operational_check.php',
+	'lifecycle_qualification_check.php',
+	'concurrency_check.php',
+	'entity_isolation_check.php',
 	'security_regression_check.php',
 	'schema_check.php'
 )

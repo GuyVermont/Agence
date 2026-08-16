@@ -237,6 +237,12 @@ abstract class SofCommonObject extends CommonObject
 	 */
 	public function create(User $user, $notrigger = 0)
 	{
+		global $conf;
+		if (!empty($this->entity) && (int) $this->entity !== (int) $conf->entity) {
+			$this->error = 'Création inter-entité interdite.';
+			return -1;
+		}
+		$this->entity = (int) $conf->entity;
 		if ($this->validateAgencyCashDeskDasRelations() < 0) {
 			return -1;
 		}
@@ -254,6 +260,8 @@ abstract class SofCommonObject extends CommonObject
 	 */
 	public function fetch($id, $ref = null, $morewhere = '', $noextrafields = 0)
 	{
+		global $conf;
+		$morewhere .= ' AND t.entity = '.((int) $conf->entity);
 		return $this->fetchCommon($id, $ref, $morewhere, $noextrafields);
 	}
 
@@ -266,6 +274,11 @@ abstract class SofCommonObject extends CommonObject
 	 */
 	public function update(User $user, $notrigger = 0)
 	{
+		global $conf;
+		if ((int) $this->entity !== (int) $conf->entity) {
+			$this->error = 'Mise à jour inter-entité interdite.';
+			return -1;
+		}
 		if ($this->validateAgencyCashDeskDasRelations() < 0) {
 			return -1;
 		}
@@ -321,6 +334,11 @@ abstract class SofCommonObject extends CommonObject
 	 */
 	public function delete(User $user, $notrigger = 0)
 	{
+		global $conf;
+		if ((int) $this->entity !== (int) $conf->entity) {
+			$this->error = 'Suppression inter-entité interdite.';
+			return -1;
+		}
 		return $this->deleteCommon($user, $notrigger);
 	}
 

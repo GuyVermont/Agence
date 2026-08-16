@@ -17,6 +17,7 @@ class SofCaisseControle extends SofCommonObject
 		'fk_agence' => array('type' => 'integer:SofAgence:custom/agence/class/sofagence.class.php', 'label' => 'Agency', 'notnull' => 1, 'index' => 1),
 		'fk_caisse' => array('type' => 'integer:SofCaisse:custom/agence/class/sofcaisse.class.php', 'label' => 'CashDesk', 'index' => 1),
 		'fk_session' => array('type' => 'integer:SofCaisseSession:custom/agence/class/sofcaissesession.class.php', 'label' => 'CashSession', 'index' => 1),
+		'previous_session_status' => array('type' => 'integer', 'label' => 'PreviousSessionStatus', 'noteditable' => 1),
 		'fk_das' => array('type' => 'integer:SofDas:custom/agence/class/sofdas.class.php', 'label' => 'DAS'),
 		'fk_user_cashier' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'Cashier'),
 		'fk_user_controller' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'Controller', 'notnull' => 1, 'index' => 1),

@@ -109,5 +109,8 @@ agence_schema_result($duplicatePaymentLinks === 0, 'payment/invoice links contai
 $indexState = agence_schema_has_index($db->prefix().'sof_paiement_link', 'uk_sof_paiement_link_payment_invoice');
 agence_schema_result($indexState === true, 'unique payment/invoice index is installed', $indexState === false || $indexState === null);
 
+$alertIndexState = agence_schema_has_index($db->prefix().'sof_caisse_alerte', 'uk_sof_caisse_alerte_dedup');
+agence_schema_result($alertIndexState === true, 'unique open-alert deduplication index is installed', $alertIndexState === false || $alertIndexState === null);
+
 echo 'Schema check: '.count($errors).' error(s), '.count($warnings).' warning(s).'.PHP_EOL;
 exit(empty($errors) ? 0 : 1);

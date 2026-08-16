@@ -39,7 +39,7 @@ class modAgence extends DolibarrModules
 		$this->descriptionlong = 'ModuleAgenceDescLong';
 		$this->editor_name = 'SOFITOUL';
 		$this->editor_url = '';
-		$this->version = '2.0.1';
+		$this->version = '2.1.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'building';
 
@@ -275,8 +275,13 @@ class modAgence extends DolibarrModules
 			return -1;
 		}
 		$this->seedPaymentModes();
-
-		return $this->_init($sql, $options);
+		$result = $this->_init($sql, $options);
+		if ($result >= 0) {
+			$cronSql = 'UPDATE '.$this->db->prefix()."cronjob SET status = 1 WHERE module_name = 'agence'";
+			$cronSql .= " AND objectname = 'SofAlerte' AND methodename = 'detectAlerts'";
+			$this->db->query($cronSql);
+		}
+		return $result;
 	}
 
 	/** Apply additive schema upgrades when an existing installation is re-enabled. */
@@ -288,6 +293,43 @@ class modAgence extends DolibarrModules
 				'fk_bank_account_cheque' => array('type' => 'integer'),
 				'fk_bank_account_mobile' => array('type' => 'integer'),
 				'fk_bank_account_other' => array('type' => 'integer'),
+			),
+			$this->db->prefix().'sof_caisse_session' => array(
+				'accounting_attempts' => array('type' => 'integer', 'default' => 0, 'notnull' => 1),
+				'accounting_error' => array('type' => 'text'),
+				'date_accounting' => array('type' => 'datetime'),
+				'fk_user_accounting' => array('type' => 'integer'),
+			),
+			$this->db->prefix().'sof_caisse_mouvement' => array(
+				'accounting_attempts' => array('type' => 'integer', 'default' => 0, 'notnull' => 1),
+				'accounting_error' => array('type' => 'text'),
+				'date_accounting_attempt' => array('type' => 'datetime'),
+			),
+			$this->db->prefix().'sof_paiement_differe' => array(
+				'date_validation' => array('type' => 'datetime'),
+				'fk_user_validator' => array('type' => 'integer'),
+				'date_dispute' => array('type' => 'datetime'),
+				'fk_user_dispute' => array('type' => 'integer'),
+				'regularization_reason' => array('type' => 'text'),
+				'date_regularization' => array('type' => 'datetime'),
+				'fk_user_regularization' => array('type' => 'integer'),
+				'date_closure' => array('type' => 'datetime'),
+				'fk_user_closure' => array('type' => 'integer'),
+			),
+			$this->db->prefix().'sof_avoir_tracking' => array(
+				'date_validation' => array('type' => 'datetime'),
+				'fk_user_validator' => array('type' => 'integer'),
+				'date_last_use' => array('type' => 'datetime'),
+				'fk_user_last_use' => array('type' => 'integer'),
+			),
+			$this->db->prefix().'sof_caisse_ecart' => array(
+				'date_treatment' => array('type' => 'datetime'),
+			),
+			$this->db->prefix().'sof_caisse_controle' => array(
+				'previous_session_status' => array('type' => 'integer'),
+			),
+			$this->db->prefix().'sof_caisse_alerte' => array(
+				'dedup_key' => array('type' => 'varchar', 'value' => '255'),
 			),
 		);
 		foreach ($upgrades as $table => $fields) {
@@ -342,6 +384,20 @@ class modAgence extends DolibarrModules
 				return -1;
 			}
 			if ((int) $row->nb === 0 && !$this->db->query('CREATE UNIQUE INDEX uk_sof_paiement_link_payment_invoice ON '.$paymentLinkTable.' (fk_paiement, fk_facture)')) {
+				return -1;
+			}
+		}
+
+		$alertTable = $this->db->prefix().'sof_caisse_alerte';
+		if ($this->db->type === 'pgsql') {
+			if (!$this->db->query('CREATE UNIQUE INDEX IF NOT EXISTS uk_sof_caisse_alerte_dedup ON '.$alertTable.' (entity, dedup_key)')) {
+				return -1;
+			}
+		} elseif (in_array($this->db->type, array('mysql', 'mysqli'), true)) {
+			$sql = "SELECT COUNT(*) nb FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '".$this->db->escape($alertTable)."' AND index_name = 'uk_sof_caisse_alerte_dedup'";
+			$resql = $this->db->query($sql);
+			$row = $resql ? $this->db->fetch_object($resql) : null;
+			if (!$row || ((int) $row->nb === 0 && !$this->db->query('CREATE UNIQUE INDEX uk_sof_caisse_alerte_dedup ON '.$alertTable.' (entity, dedup_key)'))) {
 				return -1;
 			}
 		}

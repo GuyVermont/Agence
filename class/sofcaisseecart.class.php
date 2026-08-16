@@ -26,6 +26,7 @@ class SofCaisseEcart extends SofCommonObject
 		'severity' => array('type' => 'varchar(64)', 'label' => 'Severity'),
 		'reason' => array('type' => 'text', 'label' => 'Reason'),
 		'treatment_decision' => array('type' => 'text', 'label' => 'TreatmentDecision'),
+		'date_treatment' => array('type' => 'datetime', 'label' => 'TreatmentDate'),
 		'fk_user_cashier' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'Cashier'),
 		'fk_user_validator' => array('type' => 'integer:User:user/class/user.class.php', 'label' => 'Validator'),
 		'status' => array('type' => 'integer', 'label' => 'Status', 'notnull' => 1, 'default' => 0, 'index' => 1),

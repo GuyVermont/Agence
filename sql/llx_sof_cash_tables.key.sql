@@ -46,6 +46,7 @@ ALTER TABLE llx_sof_caisse_alerte ADD INDEX idx_sof_caisse_alerte_type (alert_ty
 ALTER TABLE llx_sof_caisse_alerte ADD INDEX idx_sof_caisse_alerte_agence (fk_agence);
 ALTER TABLE llx_sof_caisse_alerte ADD INDEX idx_sof_caisse_alerte_object (object_type, object_id);
 ALTER TABLE llx_sof_caisse_alerte ADD INDEX idx_sof_caisse_alerte_status (status);
+ALTER TABLE llx_sof_caisse_alerte ADD UNIQUE INDEX uk_sof_caisse_alerte_dedup (entity, dedup_key);
 
 ALTER TABLE llx_sof_mapping_comptable ADD UNIQUE INDEX uk_sof_mapping_comptable_code_entity (code, entity);
 ALTER TABLE llx_sof_mapping_comptable ADD INDEX idx_sof_mapping_comptable_operation (operation_type);
