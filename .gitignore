@@ -1,0 +1,26 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime and generated files
+*.log
+*.tmp
+*.cache
+.phpunit.result.cache
+coverage/
+build/
+dist/
+
+# Local dependency folders
+node_modules/
+vendor/
+
+# IDE and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

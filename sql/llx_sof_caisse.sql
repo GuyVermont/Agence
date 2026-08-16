@@ -1,0 +1,38 @@
+-- Caisse operationnelle SOFITOUL.
+-- The financial account itself remains a Dolibarr bank/cash account.
+
+CREATE TABLE llx_sof_caisse (
+  rowid integer AUTO_INCREMENT PRIMARY KEY,
+  entity integer DEFAULT 1 NOT NULL,
+  fk_agence integer NOT NULL,
+  ref varchar(64) NOT NULL,
+  label varchar(255) NOT NULL,
+  caisse_type varchar(64) NOT NULL,
+  currency_code varchar(10),
+  fk_bank_account integer,
+  fk_bank_account_card integer,
+  fk_bank_account_cheque integer,
+  fk_bank_account_mobile integer,
+  fk_bank_account_other integer,
+  accountancy_code varchar(64),
+  analytic_code varchar(128),
+  fk_user_main_cashier integer,
+  fk_user_cash_chief integer,
+  fk_user_responsible integer,
+  allowed_cashiers text,
+  allowed_das text,
+  allowed_payment_modes text,
+  cashin_ceiling double(24,8) DEFAULT 0,
+  physical_balance_ceiling double(24,8) DEFAULT 0,
+  refund_ceiling double(24,8) DEFAULT 0,
+  allow_multi_cashiers integer DEFAULT 0,
+  allow_parallel_sessions integer DEFAULT 0,
+  status integer DEFAULT 1 NOT NULL,
+  date_activation datetime,
+  date_desactivation datetime,
+  date_creation datetime NOT NULL,
+  tms timestamp,
+  fk_user_creat integer NOT NULL,
+  fk_user_modif integer,
+  import_key varchar(14)
+);

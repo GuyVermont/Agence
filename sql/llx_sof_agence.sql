@@ -1,0 +1,37 @@
+-- Agence SOFITOUL.
+-- Dolibarr-native first: this table describes an internal operational scope.
+
+CREATE TABLE llx_sof_agence (
+  rowid integer AUTO_INCREMENT PRIMARY KEY,
+  entity integer DEFAULT 1 NOT NULL,
+  ref varchar(64) NOT NULL,
+  label varchar(255) NOT NULL,
+  town varchar(128),
+  country_code varchar(10),
+  address text,
+  phone varchar(64),
+  email varchar(255),
+  fk_user_responsible integer,
+  fk_user_deputy integer,
+  fk_user_cash_chief integer,
+  fk_user_accounting_referent integer,
+  fk_user_sales_referent integer,
+  opening_hours text,
+  allowed_das text,
+  cash_ceiling double(24,8) DEFAULT 0,
+  cashin_ceiling double(24,8) DEFAULT 0,
+  refund_ceiling double(24,8) DEFAULT 0,
+  deferred_payment_ceiling double(24,8) DEFAULT 0,
+  alert_threshold_amount double(24,8) DEFAULT 0,
+  validation_rules text,
+  closing_rules text,
+  accounting_center varchar(128),
+  status integer DEFAULT 1 NOT NULL,
+  note_public text,
+  note_private text,
+  date_creation datetime NOT NULL,
+  tms timestamp,
+  fk_user_creat integer NOT NULL,
+  fk_user_modif integer,
+  import_key varchar(14)
+);

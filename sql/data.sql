@@ -1,0 +1,1 @@
+-- Initial setup data for Agence module.
