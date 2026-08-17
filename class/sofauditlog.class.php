@@ -36,6 +36,9 @@ class SofAuditLog extends SofCommonObject
 		'new_value' => array('type' => 'text', 'label' => 'NewValue'),
 		'reason' => array('type' => 'text', 'label' => 'Reason'),
 		'attachment_ref' => array('type' => 'varchar(255)', 'label' => 'Attachment'),
+		'archive_status' => array('type' => 'integer', 'label' => 'ArchiveStatus', 'notnull' => 1, 'default' => 0),
+		'date_archive' => array('type' => 'datetime', 'label' => 'ArchiveDate'),
+		'purge_after' => array('type' => 'datetime', 'label' => 'PurgeAfter'),
 		'status' => array('type' => 'integer', 'label' => 'Status', 'notnull' => 1, 'default' => 1, 'index' => 1),
 		'date_creation' => array('type' => 'datetime', 'label' => 'DateCreation', 'notnull' => 1, 'visible' => -2),
 	);

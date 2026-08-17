@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL */
+/* Copyright (C) 2026 iPowerWorld */
 
 /** Read-only schema and data-integrity qualification for the Agence module. */
 if (PHP_SAPI !== 'cli') {
@@ -91,6 +91,34 @@ foreach ($registry as $key => $config) {
 	}
 }
 
+$industrialStructures = array(
+	'sof_notification_config' => array('event_code','severity_min','channel','recipient_type','recipient','escalation_level','status'),
+	'sof_notification_outbox' => array('dedup_key','event_code','channel','recipient','attempts','max_attempts','next_attempt','status'),
+	'sof_bank_import' => array('source_type','fk_bank_account','file_checksum','line_count','matched_count','status'),
+	'sof_bank_import_line' => array('fk_import','operation_date','amount','fk_bank','fk_mouvement','match_score','status'),
+	'sof_recouvrement' => array('fk_paiement_differe','fk_soc','fk_agence','stage','outstanding_amount','status'),
+	'sof_recouvrement_action' => array('fk_recouvrement','action_type','notes','date_action'),
+	'sof_bulk_import' => array('object_type','import_mode','file_checksum','created_count','updated_count','error_count','status'),
+	'sof_bulk_import_line' => array('fk_import','line_number','payload','action_taken','status'),
+	'sof_technical_error' => array('operation_code','retry_handler','payload','attempts','max_attempts','next_retry','status'),
+	'sof_financial_reversal' => array('fk_mouvement_original','fk_mouvement_reversal','reason','evidence_ref','status'),
+	'sof_archive_log' => array('object_type','object_id','policy_code','action_type','content_hash','action_date'),
+);
+foreach ($industrialStructures as $tableName => $fields) {
+	$table = $db->prefix().$tableName;
+	$missing = array();
+	foreach (array_merge(array('rowid','entity'), $fields) as $field) {
+		$description = $db->DDLDescTable($table, $field);
+		if (!$description || $db->num_rows($description) === 0) $missing[] = $field;
+	}
+	agence_schema_result(empty($missing), $table.' exposes the industrial contract'.(empty($missing) ? '' : ': '.implode(', ', $missing)));
+}
+
+foreach (array('archive_status','date_archive','purge_after') as $field) {
+	$description = $db->DDLDescTable($db->prefix().'sof_caisse_auditlog', $field);
+	agence_schema_result($description && $db->num_rows($description) > 0, 'audit retention field '.$field.' is installed');
+}
+
 $sessionMismatch = agence_schema_scalar('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_caisse_session s LEFT JOIN '.$db->prefix().'sof_caisse c ON c.rowid=s.fk_caisse AND c.entity=s.entity WHERE c.rowid IS NULL OR c.fk_agence <> s.fk_agence');
 agence_schema_result($sessionMismatch === 0, 'cash sessions match an existing cash desk in the same agency');
 
@@ -111,6 +139,26 @@ agence_schema_result($indexState === true, 'unique payment/invoice index is inst
 
 $alertIndexState = agence_schema_has_index($db->prefix().'sof_caisse_alerte', 'uk_sof_caisse_alerte_dedup');
 agence_schema_result($alertIndexState === true, 'unique open-alert deduplication index is installed', $alertIndexState === false || $alertIndexState === null);
+
+foreach (array(
+	array('sof_notification_outbox','uk_sof_notif_outbox_dedup'),
+	array('sof_bank_import','uk_sof_bank_import_checksum'),
+	array('sof_bank_import_line','uk_sof_bank_import_line_bank'),
+	array('sof_bank_import_line','uk_sof_bank_import_line_movement'),
+	array('sof_recouvrement','uk_sof_recouvrement_deferred'),
+	array('sof_bulk_import','uk_sof_bulk_import_checksum'),
+	array('sof_financial_reversal','uk_sof_financial_reversal_original'),
+) as $indexCheck) {
+	$state = agence_schema_has_index($db->prefix().$indexCheck[0], $indexCheck[1]);
+	agence_schema_result($state === true, 'unique industrial index '.$indexCheck[1].' is installed', $state === false || $state === null);
+}
+
+$orphanImportLines = agence_schema_scalar('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_bank_import_line l LEFT JOIN '.$db->prefix().'sof_bank_import i ON i.rowid=l.fk_import AND i.entity=l.entity WHERE i.rowid IS NULL');
+agence_schema_result($orphanImportLines === 0, 'bank statement lines belong to an import in the same entity');
+$orphanCollectionActions = agence_schema_scalar('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_recouvrement_action a LEFT JOIN '.$db->prefix().'sof_recouvrement r ON r.rowid=a.fk_recouvrement AND r.entity=a.entity WHERE r.rowid IS NULL');
+agence_schema_result($orphanCollectionActions === 0, 'collection actions belong to a case in the same entity');
+$invalidApprovedReversals = agence_schema_scalar('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_financial_reversal WHERE status=2 AND (fk_mouvement_reversal IS NULL OR date_decision IS NULL OR fk_user_approval IS NULL)');
+agence_schema_result($invalidApprovedReversals === 0, 'approved reversals reference their opposite movement and decision');
 
 echo 'Schema check: '.count($errors).' error(s), '.count($warnings).' warning(s).'.PHP_EOL;
 exit(empty($errors) ? 0 : 1);

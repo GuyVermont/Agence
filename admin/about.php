@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL */
+/* Copyright (C) 2026 iPowerWorld */
 
 /**
  * \file       htdocs/custom/agence/admin/about.php
@@ -10,6 +10,7 @@
 require '../../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/core/modules/modAgence.class.php';
 
 $langs->loadLangs(array('admin', 'agence@agence'));
 
@@ -24,11 +25,13 @@ print load_fiche_titre($langs->trans('About'), $linkback, 'title_setup');
 
 $head = agenceAdminPrepareHead();
 print dol_get_fiche_head($head, 'about', $langs->trans('ModuleAgenceName'), -1, 'building');
+$moduleDescriptor = new modAgence($db);
 
 print '<table class="noborder centpercent">';
 print '<tr class="oddeven"><td class="titlefield">'.$langs->trans('Module').'</td><td>'.$langs->trans('ModuleAgenceName').'</td></tr>';
-print '<tr class="oddeven"><td>'.$langs->trans('Version').'</td><td>2.0.1</td></tr>';
-print '<tr class="oddeven"><td>'.$langs->trans('Publisher').'</td><td>SOFITOUL</td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('Version').'</td><td>'.dol_escape_htmltag($moduleDescriptor->version).'</td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('Publisher').'</td><td><a href="https://ipowerworld.net" rel="noopener noreferrer">iPowerWorld</a></td></tr>';
+print '<tr class="oddeven"><td>Support</td><td><a href="mailto:csa@ipowerworld.net">csa@ipowerworld.net</a></td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('Purpose').'</td><td>'.$langs->trans('ModuleAgenceDescLong').'</td></tr>';
 print '</table>';
 

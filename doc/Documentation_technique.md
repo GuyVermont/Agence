@@ -2,7 +2,7 @@
 
 ## Version cible
 
-- Module Agence : 2.0.1
+- Module Agence : 2.2.0
 - Dolibarr : 22.0.4
 - Base locale detectee : PostgreSQL
 - Prefixe : `llx_`
@@ -43,6 +43,8 @@ Le service central `class/sofagenceoperations.class.php` porte les transactions 
 - Les hooks et triggers rattachent les operations natives Dolibarr sans doubler celles deja creees par le moteur Agence.
 
 Les pages HTTP ne modifient pas directement les soldes : elles appellent le service central. Les champs calcules ou systeme des objets operationnels sont en lecture seule dans le CRUD generique.
+
+La version 2.2 ajoute trois services bornés à l'entité courante : `SofNotificationService` pour les notifications, escalades, recouvrement et reprises ; `SofImportService` pour les relevés et référentiels CSV ; `SofAgenceIndustrialService` pour le cron consolidé, les contrepassations, la conservation et le diagnostic.
 
 ## Tables propres SOFITOUL
 
@@ -87,6 +89,20 @@ Tables de liaison/enrichissement Dolibarr :
 - `llx_sof_bank_link`
 - `llx_sof_product_das`
 - `llx_sof_tiers_credit_profile`
+
+Tables d'exploitation industrielle :
+
+- `llx_sof_notification_config`
+- `llx_sof_notification_outbox`
+- `llx_sof_bank_import`
+- `llx_sof_bank_import_line`
+- `llx_sof_recouvrement`
+- `llx_sof_recouvrement_action`
+- `llx_sof_bulk_import`
+- `llx_sof_bulk_import_line`
+- `llx_sof_technical_error`
+- `llx_sof_financial_reversal`
+- `llx_sof_archive_log`
 
 ## References Dolibarr
 

@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL */
+/* Copyright (C) 2026 iPowerWorld */
 
 /**
  * Security regression checks for agency-scope enforcement.
@@ -67,6 +67,15 @@ $expectedSettingKeys = array(
 	'AGENCE_DEPOSIT_ALERT_DAYS',
 	'AGENCE_CASH_DENOMINATIONS',
 	'AGENCE_ALLOW_SELF_APPROVAL',
+	'AGENCE_ENABLE_NOTIFICATIONS',
+	'AGENCE_SMS_GATEWAY_URL',
+	'AGENCE_SMS_GATEWAY_TOKEN',
+	'AGENCE_CRITICAL_ESCALATION_MINUTES',
+	'AGENCE_VALIDATION_ESCALATION_HOURS',
+	'AGENCE_AUDIT_RETENTION_DAYS',
+	'AGENCE_DOCUMENT_RETENTION_DAYS',
+	'AGENCE_TECH_ERROR_RETENTION_DAYS',
+	'AGENCE_ENABLE_PURGE',
 );
 $settingDefinitions = function_exists('agence_get_settings_definition') ? agence_get_settings_definition() : array();
 agence_security_assert(array_keys($settingDefinitions) === $expectedSettingKeys, 'setup exposes an exact allowlist of Agence constants');
@@ -99,6 +108,16 @@ $validDenominationsAccepted = function_exists('agence_validate_setting_update')
 	? agence_validate_setting_update('AGENCE_CASH_DENOMINATIONS', '10000, 5000, 1000', array(), $normalizedSetting, $settingError)
 	: false;
 agence_security_assert($validDenominationsAccepted && $normalizedSetting === '10000,5000,1000', 'setup validator canonicalizes valid cash denominations');
+$settingError = '';
+$insecureSmsUrlRejected = function_exists('agence_validate_setting_update')
+	? !agence_validate_setting_update('AGENCE_SMS_GATEWAY_URL', 'http://sms.example.test/send', array(), $normalizedSetting, $settingError)
+	: false;
+agence_security_assert($insecureSmsUrlRejected, 'setup validator requires HTTPS for the SMS gateway');
+$settingError = '';
+$invalidSecretRejected = function_exists('agence_validate_setting_update')
+	? !agence_validate_setting_update('AGENCE_SMS_GATEWAY_TOKEN', "secret\nheader", array(), $normalizedSetting, $settingError)
+	: false;
+agence_security_assert($invalidSecretRejected, 'setup validator rejects control characters in integration secrets');
 
 $source = file_get_contents(DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_crud.lib.php');
 $updateStart = strpos($source, "if (\$action === 'update' && \$id > 0)");

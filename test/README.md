@@ -6,6 +6,7 @@ Depuis le dossier `htdocs/custom/agence/test`, lancer :
 php quick_check.php
 php operational_check.php
 php lifecycle_qualification_check.php
+php industrial_operations_check.php
 php concurrency_check.php
 php entity_isolation_check.php
 ```
@@ -15,6 +16,8 @@ Le test rapide verifie le chargement du descripteur, des permissions, des menus,
 Le test operationnel execute dans une transaction les parcours critiques : session, encaissement mixte, paiement ulterieur sans doublon, acompte natif, remboursement et avoir, versement coffre, depot et rapprochement bancaire, comptage, workflow multi-niveaux et cloture. Toutes ses donnees de recette sont annulees par rollback.
 
 Le test de cycle qualifie les transitions différé/litige/régularisation/clôture, l'avoir, le contrôle inopiné, l'écart critique, le rejet/reprise comptable, les alertes, les tableaux par rôle et la révocation à chaud. Le test de concurrence lance deux processus PHP réellement simultanés contre la même ligne. Le test d'isolation injecte une seconde entité logique et prouve l'étanchéité des objets, services, rapports et chemins PDF.
+
+Le test industriel qualifie les notifications internes et la mise en file e-mail/SMS sans émission externe, les escalades, les imports et rapprochements banque/Orange Money/Mobile Money, la création et mise à jour en masse des référentiels, le recouvrement, la reprise d'erreur, la contrepassation, la conservation et le diagnostic. Il s'exécute dans une transaction et annule toutes ses fixtures.
 
 La recette navigateur utilise une fixture temporaire :
 

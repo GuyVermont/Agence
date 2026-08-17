@@ -2,6 +2,29 @@
 
 Toutes les évolutions significatives du module Agence sont consignées dans ce fichier.
 
+## [2.2.0] - 2026-08-17
+
+Version d’exploitation industrielle éditée par iPowerWorld.
+
+### Exploitation et intégrations financières
+
+- notifications configurables par e-mail Dolibarr, passerelle SMS HTTPS ou canal interne persistant ;
+- file de messages dédupliquée, délais exponentiels, erreurs définitives tracées et reprise contrôlée ;
+- escalades à trois niveaux des alertes critiques et validations en retard ;
+- import CSV bancaire avec suggestions par compte, montant, date et référence, puis rapprochement confirmé ;
+- rapprochement des relevés Orange Money et Mobile Money avec les mouvements non encore consommés ;
+- imports initiaux et mises à jour de masse des agences, DAS, caisses et affectations ;
+- workflow de recouvrement gradué, relances, actions, litiges et promesses de paiement documentées.
+
+### Contrôle, conservation et administration
+
+- demandes de contrepassation motivées, séparation des responsabilités et écriture opposée immuable ;
+- politique de conservation des audits, documents et erreurs, prévisualisation et purge à double confirmation ;
+- journal des archives avec empreintes SHA-256 et séparation physique par entité ;
+- tableau de diagnostic pour le schéma, les tâches planifiées, les mappings, les comptes et les intégrations ;
+- neuf droits dédiés, menus opérationnels, filtre par périmètre d’agence et migrations additives ;
+- test transactionnel complet des dix fonctions indispensables et contrôles de schéma/index étendus.
+
 ## [2.1.0] - 2026-08-16
 
 Version de qualification industrielle des parcours financiers et de sécurité.
@@ -49,3 +72,4 @@ Version de référence initiale du dépôt public.
 
 [2.0.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.0.1
 [2.1.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.1.0
+[2.2.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.2.0

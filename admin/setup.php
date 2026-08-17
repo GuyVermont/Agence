@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL */
+/* Copyright (C) 2026 iPowerWorld */
 
 /**
  * \file       htdocs/custom/agence/admin/setup.php
@@ -19,7 +19,7 @@ if (!$user->admin && !$user->hasRight('agence', 'parametre', 'write')) {
 
 $settings = agence_get_settings_definition();
 $action = GETPOST('action', 'aZ09');
-$value = GETPOST('value', 'alphanohtml');
+$value = GETPOST('value', 'restricthtml');
 $constname = GETPOST('constname', 'alpha');
 
 if ($action === 'setconst') {
@@ -61,13 +61,16 @@ foreach ($settings as $key => $setting) {
 	$current = getDolGlobalString($key, $setting['default']);
 	print '<tr class="oddeven">';
 	print '<td>'.(strpos($setting['label'], ' ') === false ? $langs->trans($setting['label']) : dol_escape_htmltag($setting['label'])).'</td>';
-	print '<td>'.($setting['type'] === 'boolean' ? ($current ? $langs->trans('Yes') : $langs->trans('No')) : dol_escape_htmltag($current)).'</td>';
+	$displayValue = $setting['type'] === 'secret' ? ($current !== '' ? 'Configuré' : 'Non configuré') : dol_escape_htmltag($current);
+	print '<td>'.($setting['type'] === 'boolean' ? ($current ? $langs->trans('Yes') : $langs->trans('No')) : $displayValue).'</td>';
 	print '<td class="right">';
 	if ($setting['type'] === 'boolean') {
 		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input type="hidden" name="value" value="'.($current ? '0' : '1').'"><button class="button smallpaddingimp" type="submit">'.img_picto($langs->trans('Switch'), 'switch_on').'</button></form>';
 	} elseif (in_array($setting['type'], array('integer', 'decimal'), true)) {
 		$step = $setting['type'] === 'integer' ? '1' : '0.01';
 		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat width100" type="number" min="'.dol_escape_htmltag((string) $setting['min']).'" max="'.dol_escape_htmltag((string) $setting['max']).'" step="'.$step.'" name="value" value="'.dol_escape_htmltag($current).'"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
+	} elseif ($setting['type'] === 'secret') {
+		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat minwidth400" autocomplete="new-password" type="password" name="value" value="" placeholder="Laisser vide pour effacer"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
 	} else {
 		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat minwidth400" type="text" name="value" value="'.dol_escape_htmltag($current).'"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
 	}

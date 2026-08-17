@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL */
+/* Copyright (C) 2026 iPowerWorld */
 
 /**
  * CLI quick check for the Agence module.
@@ -24,6 +24,9 @@ require_once DOL_DOCUMENT_ROOT.'/custom/agence/core/modules/modAgence.class.php'
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_crud.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_report.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/core/modules/agence/doc/pdf_agence_standard.modules.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofnotificationservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofimportservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofindustrialservice.class.php';
 
 $errors = 0;
 
@@ -38,9 +41,11 @@ function agence_check_line($ok, $label)
 
 $module = new modAgence($GLOBALS['db']);
 agence_check_line($module->name === 'Agence', 'module descriptor loaded');
-agence_check_line(version_compare($module->version, '2.0.0', '>='), 'operational module version loaded');
-agence_check_line(count($module->rights) >= 35, 'module permissions declared');
-agence_check_line(count($module->menu) >= 16, 'module menus declared');
+agence_check_line(version_compare($module->version, '2.2.0', '>='), 'industrial module version loaded');
+agence_check_line($module->editor_name === 'iPowerWorld' && $module->editor_url === 'https://ipowerworld.net', 'iPowerWorld publisher identity declared');
+agence_check_line(count($module->rights) >= 45, 'module permissions declared');
+agence_check_line(count($module->menu) >= 30, 'module menus declared');
+agence_check_line(class_exists('SofNotificationService') && class_exists('SofImportService') && class_exists('SofAgenceIndustrialService'), 'industrial services loaded');
 
 $registry = agence_get_object_registry();
 agence_check_line(count($registry) >= 32, 'CRUD object registry loaded');
@@ -54,9 +59,9 @@ agence_check_line($pdf->type === 'pdf', 'PDF model loaded');
 agence_check_line(function_exists('agence_report_dataset'), 'reporting helpers loaded');
 
 $sqlFiles = glob(DOL_DOCUMENT_ROOT.'/custom/agence/sql/*.sql');
-agence_check_line(count($sqlFiles) >= 8, 'SQL install files present');
+agence_check_line(count($sqlFiles) >= 20, 'SQL install files present');
 
-$requiredTables = array('sof_agence', 'sof_das', 'sof_caisse', 'sof_caisse_session', 'sof_caisse_mouvement', 'sof_paiement_differe', 'sof_remboursement', 'sof_caisse_auditlog');
+$requiredTables = array('sof_agence', 'sof_das', 'sof_caisse', 'sof_caisse_session', 'sof_caisse_mouvement', 'sof_paiement_differe', 'sof_remboursement', 'sof_caisse_auditlog', 'sof_notification_config', 'sof_notification_outbox', 'sof_bank_import', 'sof_bank_import_line', 'sof_recouvrement', 'sof_recouvrement_action', 'sof_bulk_import', 'sof_bulk_import_line', 'sof_technical_error', 'sof_financial_reversal', 'sof_archive_log');
 foreach ($requiredTables as $table) {
 	$info = $GLOBALS['db']->DDLInfoTable($GLOBALS['db']->prefix().$table);
 	echo (!empty($info) ? '[OK] ' : '[WARN] ').'database table '.$GLOBALS['db']->prefix().$table.(!empty($info) ? ' exists' : ' not found yet, activate/reload module SQL').PHP_EOL;
@@ -79,7 +84,13 @@ foreach ($accountFields as $field) {
 $sql = 'SELECT COUNT(*) AS nb FROM '.$GLOBALS['db']->prefix()."menu WHERE module = 'agence' AND entity IN (0, ".((int) $GLOBALS['conf']->entity).')';
 $resql = $GLOBALS['db']->query($sql);
 $installedMenus = $resql ? (int) $GLOBALS['db']->fetch_object($resql)->nb : 0;
-agence_check_line($installedMenus >= 16, 'Agence menus installed in database');
+agence_check_line($installedMenus >= 30, 'Agence menus installed in database ('.$installedMenus.'/'.count($module->menu).')');
+if ($installedMenus < 30) {
+	$menuRows = $GLOBALS['db']->query('SELECT rowid,type,leftmenu,position,url FROM '.$GLOBALS['db']->prefix()."menu WHERE module = 'agence' AND entity IN (0, ".((int) $GLOBALS['conf']->entity).') ORDER BY position,rowid');
+	while ($menuRows && ($menuRow = $GLOBALS['db']->fetch_object($menuRows))) {
+		echo '[INFO] menu '.implode(' | ', array($menuRow->rowid,$menuRow->type,$menuRow->leftmenu,$menuRow->position,$menuRow->url)).PHP_EOL;
+	}
+}
 
 echo $errors ? "Quick check failed with ".$errors." blocking error(s).\n" : "Quick check completed without blocking errors.\n";
 exit($errors ? 1 : 0);

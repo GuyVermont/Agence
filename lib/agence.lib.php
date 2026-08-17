@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL */
+/* Copyright (C) 2026 iPowerWorld */
 
 /**
  * \file       htdocs/custom/agence/lib/agence.lib.php
@@ -26,6 +26,15 @@ function agence_get_settings_definition()
 		'AGENCE_DEPOSIT_ALERT_DAYS' => array('label' => 'Délai d’alerte dépôt non rapproché (jours)', 'type' => 'integer', 'default' => '3', 'min' => 1, 'max' => 3650),
 		'AGENCE_CASH_DENOMINATIONS' => array('label' => 'CashDenominations', 'type' => 'denominations', 'default' => '10000,5000,2000,1000,500,100,50,25,10,5'),
 		'AGENCE_ALLOW_SELF_APPROVAL' => array('label' => 'AllowSelfApproval', 'type' => 'boolean', 'default' => '0'),
+		'AGENCE_ENABLE_NOTIFICATIONS' => array('label' => 'Activer les notifications multicanales', 'type' => 'boolean', 'default' => '1'),
+		'AGENCE_SMS_GATEWAY_URL' => array('label' => 'Passerelle SMS HTTPS', 'type' => 'url', 'default' => ''),
+		'AGENCE_SMS_GATEWAY_TOKEN' => array('label' => 'Jeton secret de la passerelle SMS', 'type' => 'secret', 'default' => '', 'max' => 2048),
+		'AGENCE_CRITICAL_ESCALATION_MINUTES' => array('label' => 'Délai d’escalade critique (minutes)', 'type' => 'integer', 'default' => '15', 'min' => 1, 'max' => 10080),
+		'AGENCE_VALIDATION_ESCALATION_HOURS' => array('label' => 'Délai d’escalade des validations (heures)', 'type' => 'integer', 'default' => '24', 'min' => 1, 'max' => 8760),
+		'AGENCE_AUDIT_RETENTION_DAYS' => array('label' => 'Conservation des audits (jours)', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
+		'AGENCE_DOCUMENT_RETENTION_DAYS' => array('label' => 'Conservation des documents (jours)', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
+		'AGENCE_TECH_ERROR_RETENTION_DAYS' => array('label' => 'Conservation des erreurs techniques (jours)', 'type' => 'integer', 'default' => '730', 'min' => 90, 'max' => 36500),
+		'AGENCE_ENABLE_PURGE' => array('label' => 'Autoriser la purge après conservation', 'type' => 'boolean', 'default' => '0'),
 	);
 }
 
@@ -88,6 +97,21 @@ function agence_validate_setting_update($constname, $rawValue, array $effectiveV
 		if ($normalizedValue === '') {
 			$normalizedValue = '0';
 		}
+	} elseif ($type === 'url') {
+		if ($value === '') {
+			$normalizedValue = '';
+		} elseif (strlen($value) > 2048 || !filter_var($value, FILTER_VALIDATE_URL) || strtolower((string) parse_url($value, PHP_URL_SCHEME)) !== 'https') {
+			$error = 'La passerelle doit être une URL HTTPS valide.';
+			return false;
+		} else {
+			$normalizedValue = $value;
+		}
+	} elseif ($type === 'secret') {
+		if (strlen($value) > (int) $definition['max'] || preg_match('/[\x00-\x1F\x7F]/', $value)) {
+			$error = 'Le secret contient des caractères interdits ou dépasse la taille maximale.';
+			return false;
+		}
+		$normalizedValue = $value;
 	} elseif ($type === 'denominations') {
 		if ($value === '') {
 			$error = 'Au moins une coupure de caisse est obligatoire.';

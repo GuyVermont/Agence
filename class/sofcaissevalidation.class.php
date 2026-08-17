@@ -26,6 +26,8 @@ class SofCaisseValidation extends SofCommonObject
 		'decision_reason' => array('type' => 'text', 'label' => 'DecisionReason'),
 		'date_request' => array('type' => 'datetime', 'label' => 'RequestDate', 'notnull' => 1),
 		'date_decision' => array('type' => 'datetime', 'label' => 'DecisionDate'),
+		'escalation_level' => array('type' => 'integer', 'label' => 'EscalationLevel', 'notnull' => 1, 'default' => 0),
+		'date_last_escalation' => array('type' => 'datetime', 'label' => 'LastEscalationDate'),
 		'status' => array('type' => 'integer', 'label' => 'Status', 'notnull' => 1, 'default' => 0, 'index' => 1),
 	);
 }

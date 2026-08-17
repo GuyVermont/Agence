@@ -322,6 +322,9 @@ class SofAgenceService
 		if (!self::isActiveUser($db, $user)) {
 			return false;
 		}
+		if (!empty($user->admin)) {
+			return true;
+		}
 		if ($fkAgence <= 0 && $fkDas <= 0) {
 			return true;
 		}

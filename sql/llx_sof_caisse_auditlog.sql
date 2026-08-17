@@ -19,6 +19,9 @@ CREATE TABLE llx_sof_caisse_auditlog (
   new_value text,
   reason text,
   attachment_ref varchar(255),
+  archive_status integer DEFAULT 0 NOT NULL,
+  date_archive datetime,
+  purge_after datetime,
   status integer DEFAULT 1 NOT NULL,
   date_creation datetime NOT NULL,
   import_key varchar(14)

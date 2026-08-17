@@ -1,6 +1,6 @@
 # Module Dolibarr `agence`
 
-Module externe SOFITOUL pour piloter les agences, DAS, caisses et flux financiers dans Dolibarr. La version 2.0 reprend les fonctions operationnelles auparavant portees par `sofops` et les integre au perimetre plus large du module `agence`.
+Module PowerERP édité par **iPowerWorld** pour piloter les agences, DAS, caisses et flux financiers dans Dolibarr. La version 2.2 réunit les fonctions auparavant portées par `sofops`, les parcours financiers qualifiés et les fonctions d’exploitation industrielle dans le module unique `agence`.
 
 ## Positionnement
 
@@ -21,6 +21,13 @@ Le module `sofops` doit rester desactive afin d'eviter le doublonnage des menus,
 - file « Mes validations », supervision temps reel et comptabilisation par lot ;
 - rattachement automatique des factures/paiements et integration TakePOS par terminal ;
 - tableaux de bord, rapports filtres par perimetre, exports CSV et documents PDF.
+- notifications configurables par e-mail, SMS HTTPS et canal interne, avec file, déduplication, reprises et escalades ;
+- import de relevés bancaires, Orange Money et Mobile Money avec rapprochement semi-automatique ;
+- relances clients et workflow documenté de recouvrement des créances ;
+- imports de masse tracés des agences, DAS, caisses et affectations en création, mise à jour ou `upsert` ;
+- journal technique avec reprise contrôlée et charges utiles expurgées des secrets ;
+- contrepassations financières à deux niveaux, sans suppression de l’écriture d’origine ;
+- archivage, conservation, purge à double confirmation et diagnostic administrateur.
 
 ## Installation locale
 
@@ -42,4 +49,7 @@ Le quality gate contrôle la syntaxe PHP/JavaScript, l'installation du module, l
 - `doc/Documentation_technique.md`
 - `doc/Plan_tests_recette.md`
 - `doc/QUALIFICATION_INDUSTRIELLE.md`
+- `doc/FONCTIONS_INDISPENSABLES_2.2.md`
 - `CHANGELOG.md`
+
+Éditeur : iPowerWorld — support : csa@ipowerworld.net.

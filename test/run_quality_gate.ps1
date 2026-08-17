@@ -33,9 +33,11 @@ if ($LASTEXITCODE -ne 0) {
 Write-Output 'JavaScript syntax: PASS'
 
 $tests = @(
+	'install_upgrade_check.php',
 	'quick_check.php',
 	'operational_check.php',
 	'lifecycle_qualification_check.php',
+	'industrial_operations_check.php',
 	'concurrency_check.php',
 	'entity_isolation_check.php',
 	'security_regression_check.php',

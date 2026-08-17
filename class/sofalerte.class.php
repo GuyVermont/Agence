@@ -30,6 +30,8 @@ class SofAlerte extends SofCommonObject
 		'object_id' => array('type' => 'integer', 'label' => 'ObjectId'),
 		'message' => array('type' => 'text', 'label' => 'Message', 'notnull' => 1),
 		'target_roles' => array('type' => 'text', 'label' => 'TargetRoles'),
+		'escalation_level' => array('type' => 'integer', 'label' => 'EscalationLevel', 'notnull' => 1, 'default' => 0),
+		'date_last_escalation' => array('type' => 'datetime', 'label' => 'LastEscalationDate'),
 		'date_alert' => array('type' => 'datetime', 'label' => 'AlertDate', 'notnull' => 1),
 		'date_read' => array('type' => 'datetime', 'label' => 'ReadDate'),
 		'date_close' => array('type' => 'datetime', 'label' => 'CloseDate'),

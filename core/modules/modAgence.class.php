@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2026 SOFITOUL
+/* Copyright (C) 2026 iPowerWorld
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,9 +37,9 @@ class modAgence extends DolibarrModules
 		$this->name = preg_replace('/^mod/i', '', get_class($this));
 		$this->description = 'ModuleAgenceDesc';
 		$this->descriptionlong = 'ModuleAgenceDescLong';
-		$this->editor_name = 'SOFITOUL';
-		$this->editor_url = '';
-		$this->version = '2.1.0';
+		$this->editor_name = 'iPowerWorld';
+		$this->editor_url = 'https://ipowerworld.net';
+		$this->version = '2.2.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'building';
 
@@ -99,7 +99,16 @@ class modAgence extends DolibarrModules
 			8 => array('AGENCE_TAKEPOS_MAX_DISCOUNT_PCT', 'chaine', '10', 'TakePOS maximum discount before alert', 0, 'current', 1),
 			9 => array('AGENCE_DEPOSIT_ALERT_DAYS', 'chaine', '3', 'Days before an unreconciled deposit alert', 0, 'current', 1),
 			10 => array('AGENCE_CASH_DENOMINATIONS', 'chaine', '10000,5000,2000,1000,500,100,50,25,10,5', 'Cash denominations used for physical counts', 0, 'current', 1),
-			11 => array('AGENCE_ALLOW_SELF_APPROVAL', 'chaine', '0', 'Allow requester or cashier to approve their own financial operation', 0, 'current', 1)
+			11 => array('AGENCE_ALLOW_SELF_APPROVAL', 'chaine', '0', 'Allow requester or cashier to approve their own financial operation', 0, 'current', 1),
+			12 => array('AGENCE_ENABLE_NOTIFICATIONS', 'chaine', '1', 'Enable notification outbox processing', 0, 'current', 1),
+			13 => array('AGENCE_SMS_GATEWAY_URL', 'chaine', '', 'HTTPS endpoint of the SMS gateway', 0, 'current', 1),
+			14 => array('AGENCE_SMS_GATEWAY_TOKEN', 'chaine', '', 'Secret bearer token of the SMS gateway', 0, 'current', 1),
+			15 => array('AGENCE_CRITICAL_ESCALATION_MINUTES', 'chaine', '15', 'Delay before escalating a critical alert', 0, 'current', 1),
+			16 => array('AGENCE_VALIDATION_ESCALATION_HOURS', 'chaine', '24', 'Delay before escalating an overdue validation', 0, 'current', 1),
+			17 => array('AGENCE_AUDIT_RETENTION_DAYS', 'chaine', '3650', 'Audit retention period', 0, 'current', 1),
+			18 => array('AGENCE_DOCUMENT_RETENTION_DAYS', 'chaine', '3650', 'Document retention period', 0, 'current', 1),
+			19 => array('AGENCE_TECH_ERROR_RETENTION_DAYS', 'chaine', '730', 'Technical error retention period', 0, 'current', 1),
+			20 => array('AGENCE_ENABLE_PURGE', 'chaine', '0', 'Enable irreversible purge after retention', 0, 'current', 1)
 		);
 
 		if (!isModEnabled('agence')) {
@@ -124,6 +133,20 @@ class modAgence extends DolibarrModules
 				'status' => 1,
 				'test' => 'isModEnabled("agence")',
 				'priority' => 50,
+			),
+			1 => array(
+				'label' => 'RunAgencyIndustrialOperations',
+				'jobtype' => 'method',
+				'class' => '/agence/class/sofindustrialservice.class.php',
+				'objectname' => 'SofAgenceIndustrialService',
+				'method' => 'runScheduledOperations',
+				'parameters' => '',
+				'comment' => 'Escalate alerts and validations, send queued notifications, synchronize collections and retry controlled failures',
+				'frequency' => 15,
+				'unitfrequency' => 60,
+				'status' => 1,
+				'test' => 'isModEnabled("agence")',
+				'priority' => 51,
 			)
 		);
 
@@ -164,6 +187,16 @@ class modAgence extends DolibarrModules
 		$this->addRight($r, 33, 'AdministerAgencySettings', 'parametre', 'write');
 		$this->addRight($r, 34, 'ReadAuditTrail', 'audit', 'read');
 		$this->addRight($r, 35, 'AdministerWorkflows', 'workflow', 'write');
+		$this->addRight($r, 36, 'ManageAgencyNotifications', 'notification', 'manage');
+		$this->addRight($r, 37, 'ImportBankStatements', 'bankimport', 'import');
+		$this->addRight($r, 38, 'ReconcileImportedPayments', 'bankimport', 'reconcile');
+		$this->addRight($r, 39, 'ManageDebtCollection', 'recouvrement', 'manage');
+		$this->addRight($r, 40, 'RunAgencyBulkImports', 'bulkimport', 'run');
+		$this->addRight($r, 41, 'ManageTechnicalRetries', 'technicalerror', 'manage');
+		$this->addRight($r, 42, 'RequestFinancialReversal', 'reversal', 'request');
+		$this->addRight($r, 43, 'ApproveFinancialReversal', 'reversal', 'approve');
+		$this->addRight($r, 44, 'ManageRetentionAndPurge', 'archive', 'manage');
+		$this->addRight($r, 45, 'ReadAgencyDiagnostics', 'diagnostic', 'read');
 
 		$this->menu = array();
 		$r = 0;
@@ -178,7 +211,7 @@ class modAgence extends DolibarrModules
 			'langs' => 'agence@agence',
 			'position' => 1000,
 			'enabled' => 'isModEnabled("agence")',
-			'perms' => '$user->admin || $user->hasRight("agence", "agence", "read") || $user->hasRight("agence", "caisse", "read") || $user->hasRight("agence", "session", "open") || $user->hasRight("agence", "session", "validate") || $user->hasRight("agence", "mouvement", "cashin") || $user->hasRight("agence", "paiementdiffere", "create") || $user->hasRight("agence", "remboursement", "request") || $user->hasRight("agence", "controle", "create") || $user->hasRight("agence", "compta", "post") || $user->hasRight("agence", "report", "read") || $user->hasRight("agence", "scope", "write") || $user->hasRight("agence", "parametre", "write")',
+			'perms' => '$user->admin || $user->hasRight("agence", "agence", "read") || $user->hasRight("agence", "caisse", "read") || $user->hasRight("agence", "session", "open") || $user->hasRight("agence", "session", "validate") || $user->hasRight("agence", "mouvement", "cashin") || $user->hasRight("agence", "paiementdiffere", "create") || $user->hasRight("agence", "remboursement", "request") || $user->hasRight("agence", "controle", "create") || $user->hasRight("agence", "compta", "post") || $user->hasRight("agence", "report", "read") || $user->hasRight("agence", "scope", "write") || $user->hasRight("agence", "parametre", "write") || $user->hasRight("agence", "notification", "manage") || $user->hasRight("agence", "bankimport", "import") || $user->hasRight("agence", "recouvrement", "manage") || $user->hasRight("agence", "technicalerror", "manage") || $user->hasRight("agence", "diagnostic", "read")',
 			'target' => '',
 			'user' => 0,
 		);
@@ -199,6 +232,9 @@ class modAgence extends DolibarrModules
 		$this->addLeftMenu($r, 'RequestRefund', '/agence/remboursement/request.php', 'agence_refund_request', '$user->hasRight("agence", "remboursement", "request")', 'fa-hand-holding-dollar');
 		$this->addLeftMenu($r, 'ControlsAndAudit', '/agence/controle/list.php', 'agence_controle', '$user->hasRight("agence", "controle", "create") || $user->hasRight("agence", "audit", "read")', 'fa-shield-halved');
 		$this->addLeftMenu($r, 'BankDeposits', '/agence/banque/list.php', 'agence_banque', '$user->hasRight("agence", "depotbanque", "create") || $user->hasRight("agence", "depotbanque", "reconcile")', 'fa-building-columns');
+		$this->addLeftMenu($r, 'Imports et rapprochements', '/agence/admin/industrial.php?section=imports', 'agence_imports', '$user->hasRight("agence", "bankimport", "import") || $user->hasRight("agence", "bankimport", "reconcile") || $user->hasRight("agence", "bulkimport", "run")', 'fa-file-import');
+		$this->addLeftMenu($r, 'Recouvrement clients', '/agence/admin/industrial.php?section=collections', 'agence_collections', '$user->hasRight("agence", "recouvrement", "manage")', 'fa-comments-dollar');
+		$this->addLeftMenu($r, 'Annulations financières', '/agence/admin/industrial.php?section=reversals', 'agence_reversals', '$user->hasRight("agence", "reversal", "request") || $user->hasRight("agence", "reversal", "approve")', 'fa-arrow-rotate-left');
 		$this->addLeftMenu($r, 'WorkflowValidation', '/agence/workflow/list.php', 'agence_workflow', '$user->hasRight("agence", "workflow", "write")', 'fa-code-branch');
 		$this->addLeftMenu($r, 'MyPendingValidations', '/agence/workflow/my.php', 'agence_my_validations', '$user->hasRight("agence", "session", "validate") || $user->hasRight("agence", "remboursement", "validate") || $user->hasRight("agence", "boncommande", "validate") || $user->hasRight("agence", "bst", "validate") || $user->hasRight("agence", "instruction", "validate")', 'fa-check-double');
 		$this->addLeftMenu($r, 'ReportsStatistics', '/agence/report/index.php', 'agence_report', '$user->hasRight("agence", "report", "read")', 'fa-chart-pie');
@@ -206,6 +242,10 @@ class modAgence extends DolibarrModules
 		$this->addLeftMenu($r, 'AuditTrail', '/agence/audit/list.php', 'agence_audit', '$user->hasRight("agence", "audit", "read")', 'fa-fingerprint');
 		$this->addLeftMenu($r, 'TerminalMappings', '/agence/admin/terminal_mapping.php', 'agence_terminal_mapping', '$user->hasRight("agence", "caisse", "write") || $user->hasRight("agence", "parametre", "write")', 'fa-cash-register');
 		$this->addLeftMenu($r, 'AgencyAccountingPosting', '/agence/admin/accounting.php', 'agence_accounting', '$user->hasRight("agence", "compta", "post")', 'fa-scale-balanced');
+		$this->addLeftMenu($r, 'Notifications et escalades', '/agence/admin/industrial.php?section=notifications', 'agence_notifications', '$user->hasRight("agence", "notification", "manage")', 'fa-bell');
+		$this->addLeftMenu($r, 'Erreurs et reprises', '/agence/admin/industrial.php?section=errors', 'agence_errors', '$user->hasRight("agence", "technicalerror", "manage")', 'fa-triangle-exclamation');
+		$this->addLeftMenu($r, 'Archivage et conservation', '/agence/admin/industrial.php?section=retention', 'agence_retention', '$user->hasRight("agence", "archive", "manage")', 'fa-box-archive');
+		$this->addLeftMenu($r, 'Diagnostic Agence', '/agence/admin/diagnostic.php', 'agence_diagnostic', '$user->hasRight("agence", "diagnostic", "read") || $user->admin', 'fa-stethoscope');
 		$this->addLeftMenu($r, 'Setup', '/agence/admin/setup.php', 'agence_setup', '$user->hasRight("agence", "parametre", "write")', 'fa-gear');
 	}
 
@@ -275,13 +315,27 @@ class modAgence extends DolibarrModules
 			return -1;
 		}
 		$this->seedPaymentModes();
+		// Dolibarr's menu insertion is not idempotent: an existing first menu
+		// makes the complete activation transaction roll back. Install all other
+		// module components first, then replace only this module's owned menus.
+		$moduleMenus = $this->menu;
+		$this->menu = array();
 		$result = $this->_init($sql, $options);
-		if ($result >= 0) {
+		$this->menu = $moduleMenus;
+		if ($result > 0) {
+			if ($this->delete_menus() > 0 || $this->insert_menus() > 0) {
+				return -1;
+			}
+			// _init() may skip newly added cron descriptors when upgrading an
+			// already enabled module; this public helper is idempotent by label.
+			if ($this->insert_cronjobs() < 0) {
+				return -1;
+			}
 			$cronSql = 'UPDATE '.$this->db->prefix()."cronjob SET status = 1 WHERE module_name = 'agence'";
-			$cronSql .= " AND objectname = 'SofAlerte' AND methodename = 'detectAlerts'";
+			$cronSql .= " AND ((objectname = 'SofAlerte' AND methodename = 'detectAlerts') OR (objectname = 'SofAgenceIndustrialService' AND methodename = 'runScheduledOperations'))";
 			$this->db->query($cronSql);
 		}
-		return $result;
+		return $result > 0 ? $result : -1;
 	}
 
 	/** Apply additive schema upgrades when an existing installation is re-enabled. */
@@ -330,6 +384,17 @@ class modAgence extends DolibarrModules
 			),
 			$this->db->prefix().'sof_caisse_alerte' => array(
 				'dedup_key' => array('type' => 'varchar', 'value' => '255'),
+				'escalation_level' => array('type' => 'integer', 'default' => 0, 'notnull' => 1),
+				'date_last_escalation' => array('type' => 'datetime'),
+			),
+			$this->db->prefix().'sof_caisse_validation' => array(
+				'escalation_level' => array('type' => 'integer', 'default' => 0, 'notnull' => 1),
+				'date_last_escalation' => array('type' => 'datetime'),
+			),
+			$this->db->prefix().'sof_caisse_auditlog' => array(
+				'archive_status' => array('type' => 'integer', 'default' => 0, 'notnull' => 1),
+				'date_archive' => array('type' => 'datetime'),
+				'purge_after' => array('type' => 'datetime'),
 			),
 		);
 		foreach ($upgrades as $table => $fields) {
@@ -399,6 +464,25 @@ class modAgence extends DolibarrModules
 			$row = $resql ? $this->db->fetch_object($resql) : null;
 			if (!$row || ((int) $row->nb === 0 && !$this->db->query('CREATE UNIQUE INDEX uk_sof_caisse_alerte_dedup ON '.$alertTable.' (entity, dedup_key)'))) {
 				return -1;
+			}
+		}
+
+		$importLineTable = $this->db->prefix().'sof_bank_import_line';
+		foreach (array('fk_bank' => 'uk_sof_bank_import_line_bank', 'fk_mouvement' => 'uk_sof_bank_import_line_movement') as $field => $indexName) {
+			$sql = 'SELECT COUNT(*) nb FROM (SELECT entity, '.$field.' FROM '.$importLineTable.' WHERE '.$field.' IS NOT NULL GROUP BY entity, '.$field.' HAVING COUNT(*) > 1) duplicates';
+			$resql = $this->db->query($sql);
+			$row = $resql ? $this->db->fetch_object($resql) : null;
+			if (!$row || (int) $row->nb > 0) {
+				dol_syslog(__METHOD__.' cannot create '.$indexName.' because duplicate reconciliations exist or the check failed', LOG_ERR);
+				return -1;
+			}
+			if ($this->db->type === 'pgsql') {
+				if (!$this->db->query('CREATE UNIQUE INDEX IF NOT EXISTS '.$indexName.' ON '.$importLineTable.' (entity, '.$field.')')) return -1;
+			} elseif (in_array($this->db->type, array('mysql', 'mysqli'), true)) {
+				$sql = "SELECT COUNT(*) nb FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = '".$this->db->escape($importLineTable)."' AND index_name = '".$this->db->escape($indexName)."'";
+				$resql = $this->db->query($sql);
+				$row = $resql ? $this->db->fetch_object($resql) : null;
+				if (!$row || ((int) $row->nb === 0 && !$this->db->query('CREATE UNIQUE INDEX '.$indexName.' ON '.$importLineTable.' (entity, '.$field.')'))) return -1;
 			}
 		}
 		return 1;
