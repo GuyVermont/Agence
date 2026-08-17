@@ -22,7 +22,7 @@ Version d’exploitation industrielle éditée par iPowerWorld.
 - politique de conservation des audits, documents et erreurs, prévisualisation et purge à double confirmation ;
 - journal des archives avec empreintes SHA-256 et séparation physique par entité ;
 - tableau de diagnostic pour le schéma, les tâches planifiées, les mappings, les comptes et les intégrations ;
-- neuf droits dédiés, menus opérationnels, filtre par périmètre d’agence et migrations additives ;
+- dix droits dédiés, menus opérationnels, filtre par périmètre d’agence et migrations additives ;
 - test transactionnel complet des dix fonctions indispensables et contrôles de schéma/index étendus.
 
 ## [2.1.0] - 2026-08-16
