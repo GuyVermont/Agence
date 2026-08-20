@@ -2,6 +2,16 @@
 
 Toutes les évolutions significatives du module Agence sont consignées dans ce fichier.
 
+## [2.4.1] - 2026-08-20
+
+Version corrective des contrats d’intégration PowerERP/Dolibarr éditée par iPowerWorld.
+
+- raccordement effectif de `bank_deposit.completed` à la fin du rapprochement bancaire, avec un contexte complet et sans double émission ;
+- remplacement de l’objet générique incompatible par un véritable `CommonObject` pour le moteur Notification natif de Dolibarr ;
+- messages français et anglais lisibles pour les cinq notifications métier Agence ;
+- qualification transactionnelle des cinq webhooks depuis les transitions réelles : clôture, validation, remboursement, dépôt et alerte ;
+- alignement de la version exposée par l’API, le diagnostic, les paquets de configuration et les agents HTTP.
+
 ## [2.4.0] - 2026-08-20
 
 Version d’intégration métier native PowerERP/Dolibarr éditée par iPowerWorld.
@@ -139,4 +149,5 @@ Version de référence initiale du dépôt public.
 [2.2.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.2.0
 [2.3.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.1
 [2.4.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.4.0
+[2.4.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.4.1
 [2.3.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.0

@@ -40,7 +40,7 @@ class modAgence extends DolibarrModules
 		$this->descriptionlong = 'ModuleAgenceDescLong';
 		$this->editor_name = 'iPowerWorld';
 		$this->editor_url = 'https://ipowerworld.net';
-		$this->version = '2.4.0';
+		$this->version = '2.4.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'building';
 

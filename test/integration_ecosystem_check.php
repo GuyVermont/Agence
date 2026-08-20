@@ -62,6 +62,30 @@ $expectedSignature = $delivery ? hash_hmac('sha256', $timestamp.'.'.$delivery->p
 agence_integration_assert($queued === 1 && $duplicate === 0 && $delivery && is_array($payload) && $payload['specversion'] === '1.0' && $payload['data']['entity'] === (int) $conf->entity, 'webhook event is immutable, entity-scoped and idempotent', $service->error);
 agence_integration_assert(strlen($expectedSignature) === 64 && hash_equals($expectedSignature, hash_hmac('sha256', $timestamp.'.'.$delivery->payload, dolDecrypt($webhook->secret_encrypted))), 'webhook HMAC-SHA256 contract is reproducible');
 
+$contractEvents = array_keys(SofIntegrationService::EVENTS);
+foreach ($contractEvents as $eventCode) {
+	$service->queueBusinessEvent($eventCode, 'qualification', 987655, $agencyId, array('ref'=>'QUAL-'.$token), 'EVT-CONTRACT-'.strtoupper(str_replace('.', '-', $eventCode)).'-'.$token);
+}
+$contractRows = agence_integration_row('SELECT COUNT(DISTINCT event_code) nb FROM '.$db->prefix().'sof_webhook_delivery WHERE entity='.(int) $conf->entity.' AND fk_endpoint='.(int) $webhookId);
+agence_integration_assert($contractRows && (int) $contractRows->nb === 5, 'closure, validation, refund, bank deposit and alert webhook contracts are all queueable');
+
+$notificationObject = new SofIntegrationNotificationObject($db);
+$notificationObject->entity = (int) $conf->entity;
+agence_integration_assert($notificationObject instanceof CommonObject && $notificationObject->fetchProject() === 0, 'Dolibarr Notification receives a compatible CommonObject instead of a stdClass');
+$notificationObject->id = 987655; $notificationObject->rowid = 987655; $notificationObject->ref = 'ALT-QUAL-'.$token;
+$nativeDefinitions = agence_integration_row('SELECT COUNT(*) nb FROM '.$db->prefix().'notify_def n JOIN '.$db->prefix()."c_action_trigger a ON a.rowid=n.fk_action WHERE a.code='AGENCE_ALERT_CREATED'");
+$fixedRecipient = false;
+foreach (array_keys((array) $conf->global) as $constantName) {
+	if (strpos($constantName, 'NOTIFICATION_FIXEDEMAIL_AGENCE_ALERT_CREATED_') === 0 && getDolGlobalString($constantName) !== '') $fixedRecipient = true;
+}
+$nativeNotificationResult = 0;
+if ($nativeDefinitions && (int) $nativeDefinitions->nb === 0 && !$fixedRecipient) {
+	require_once DOL_DOCUMENT_ROOT.'/core/class/notify.class.php';
+	$nativeNotify = new Notify($db);
+	$nativeNotificationResult = $nativeNotify->send('AGENCE_ALERT_CREATED', $notificationObject);
+}
+agence_integration_assert($nativeNotificationResult >= 0, 'native Dolibarr Notification accepts the Agence event object without runtime failure');
+
 $connectorSecret = 'qualification-connector-'.$token;
 $connectorId = $service->saveConnector($user, array(
 	'ref'=>'INT-OM-'.$token, 'label'=>'Orange Money qualification', 'connector_type'=>'orange_money',
@@ -103,7 +127,7 @@ agence_integration_assert($eventCount && (int) $eventCount->nb === 5, 'five Agen
 agence_integration_assert(SofIntegrationService::dolibarrNotificationEvents() === array('AGENCE_CASH_CLOSURE_COMPLETED','AGENCE_VALIDATION_DECIDED','AGENCE_REFUND_COMPLETED','AGENCE_BANK_DEPOSIT_COMPLETED','AGENCE_ALERT_CREATED'), 'Dolibarr notification hook exposes the exact public events');
 
 $health = $service->health($user);
-agence_integration_assert(is_array($health) && $health['status'] === 'ok' && $health['version'] === '2.4.0' && $health['entity'] === (int) $conf->entity, 'REST health contract reports module, version, entity and queues', $service->error);
+agence_integration_assert(is_array($health) && $health['status'] === 'ok' && $health['version'] === '2.4.1' && $health['entity'] === (int) $conf->entity, 'REST health contract reports module, version, entity and queues', $service->error);
 
 $apiReachable = false; $apiDetail = 'cURL extension unavailable'; $apiLabel = 'REST endpoint is discovered and rejects unauthenticated calls';
 if (function_exists('curl_init')) {
@@ -115,7 +139,7 @@ if (function_exists('curl_init')) {
 	$apiJson = is_string($body) ? json_decode($body, true) : null;
 	if (!empty($user->api_key)) {
 		$apiLabel = 'authenticated Dolibarr REST endpoint /agence/health is callable';
-		$apiReachable = $httpCode === 200 && is_array($apiJson) && ($apiJson['version'] ?? '') === '2.4.0' && (int) ($apiJson['entity'] ?? 0) === (int) $conf->entity;
+		$apiReachable = $httpCode === 200 && is_array($apiJson) && ($apiJson['version'] ?? '') === '2.4.1' && (int) ($apiJson['entity'] ?? 0) === (int) $conf->entity;
 	} else {
 		$apiReachable = $httpCode === 401;
 	}

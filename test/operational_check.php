@@ -14,6 +14,7 @@ require $htdocs.'/main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagence.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaisse.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceoperations.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaissetransfert.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaissedepotbanque.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaisseworkflow.class.php';
@@ -65,6 +66,16 @@ $agency->country_code = 'CM';
 $agency->status = SofAgence::STATUS_ACTIVE;
 $agencyId = $agency->create($testUser, 1);
 agence_operational_assert($agencyId > 0, 'temporary agency created');
+
+$integrationService = new SofIntegrationService($db);
+$webhookId = $integrationService->saveWebhook($testUser, array(
+	'ref' => 'TEST-WH-'.$token, 'label' => 'Operational event qualification',
+	'endpoint_url' => 'https://example.invalid/powererp/agence',
+	'event_filter' => implode(',', array_keys(SofIntegrationService::EVENTS)),
+	'fk_agence' => (int) $agencyId, 'secret' => 'operational-webhook-secret-'.$token.'-0123456789',
+	'max_attempts' => 3, 'status' => 1,
+));
+agence_operational_assert($webhookId > 0, 'temporary webhook captures real business transitions');
 
 $cashDesk = new SofCaisse($db);
 $cashDesk->entity = (int) $conf->entity;
@@ -179,6 +190,9 @@ agence_operational_assert($cancelResult === 0 && $secondCancelResult === 0 && $c
 agence_operational_assert($takeposReversals && (int) $takeposReversals->reversals === 1 && $takeposAlerts && (int) $takeposAlerts->alerts === 1
 	&& (int) $takeposAlerts->fk_agence === $agencyId && (int) $takeposAlerts->fk_caisse === $cashDeskId && (int) $takeposAlerts->fk_session === $sessionId,
 	'TakePOS cancellation reversal and agency-scoped alert are idempotent');
+$resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_webhook_delivery WHERE entity='.(int) $conf->entity.' AND fk_endpoint='.(int) $webhookId." AND event_code='alert.created'");
+$alertDelivery = $resql ? $db->fetch_object($resql) : null;
+agence_operational_assert($alertDelivery && (int) $alertDelivery->nb === 1, 'real operational alert queues the public alert webhook once');
 
 $unmappedInvoice = new Facture($db);
 $unmappedInvoice->socid = (int) $thirdParty->rowid;
@@ -202,6 +216,9 @@ $refundValidation = $refundId > 0 ? $engine->validateRefund($testUser, $refundId
 agence_operational_assert($refundValidation > 0, 'refund reaches approved status'.($refundValidation > 0 ? '' : ' — '.$engine->error));
 $refundExecution = $refundValidation > 0 ? $engine->executeRefund($testUser, $refundId) : -1;
 agence_operational_assert($refundExecution > 0, 'approved refund creates cash out and credit note'.($refundExecution > 0 ? '' : ' — '.$engine->error.' '.implode(' | ', $engine->errors)));
+$resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_webhook_delivery WHERE entity='.(int) $conf->entity.' AND fk_endpoint='.(int) $webhookId." AND event_code='refund.completed' AND object_id=".((int) $refundId));
+$refundDelivery = $resql ? $db->fetch_object($resql) : null;
+agence_operational_assert($refundDelivery && (int) $refundDelivery->nb === 1, 'real refund execution queues the public refund webhook once');
 
 $balance = $engine->recalculateSession($sessionId);
 agence_operational_assert(abs($balance - 60000) < 0.01, 'only cash collection and cash refund update physical-cash balance');
@@ -243,6 +260,9 @@ $destinationBankLineId = $cardAccount->addline(dol_now(), 'LIQ', 'Automated depo
 agence_operational_assert($destinationBankLineId > 0, 'native destination bank line available');
 $reconcileResult = $destinationBankLineId > 0 ? $engine->reconcileDeposit($testUser, $depositId, $destinationBankLineId, 'AUTO-'.$token) : -1;
 agence_operational_assert($reconcileResult > 0, 'bank deposit reconciles against matching destination line'.($reconcileResult > 0 ? '' : ' — '.$engine->error));
+$resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_webhook_delivery WHERE entity='.(int) $conf->entity.' AND fk_endpoint='.(int) $webhookId." AND event_code='bank_deposit.completed' AND object_id=".((int) $depositId));
+$depositDelivery = $resql ? $db->fetch_object($resql) : null;
+agence_operational_assert($depositDelivery && (int) $depositDelivery->nb === 1, 'real completed bank deposit queues the public deposit webhook once');
 
 $balance = $engine->recalculateSession($sessionId);
 agence_operational_assert(abs($balance - 58000) < 0.01, 'vault transfer and bank deposit reduce physical cash exactly once');
@@ -267,12 +287,18 @@ agence_operational_assert($workflowId > 0, 'two-step closing workflow configured
 agence_operational_assert($engine->transitionSession($testUser, $sessionId, 'start_close') > 0, 'closing starts');
 $closeResult = $engine->transitionSession($testUser, $sessionId, 'close', array('physical_amount' => 58000, 'comment' => 'Balanced'));
 agence_operational_assert($closeResult > 0, 'session closes with physical amount'.($closeResult > 0 ? '' : ' — '.$engine->error.' '.implode(' | ', $engine->errors)));
+$resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_webhook_delivery WHERE entity='.(int) $conf->entity.' AND fk_endpoint='.(int) $webhookId." AND event_code='cash_closure.completed' AND object_id=".((int) $sessionId));
+$closureDelivery = $resql ? $db->fetch_object($resql) : null;
+agence_operational_assert($closureDelivery && (int) $closureDelivery->nb === 1, 'real cash closing queues the public closure webhook once');
 $firstValidateResult = $engine->transitionSession($testUser, $sessionId, 'validate', array('reason' => 'Automated first-level validation'));
 $resql = $db->query('SELECT status FROM '.$db->prefix().'sof_caisse_session WHERE rowid = '.((int) $sessionId));
 $firstValidationState = $resql ? $db->fetch_object($resql) : null;
 agence_operational_assert($firstValidateResult > 0 && $firstValidationState && (int) $firstValidationState->status === 6, 'first workflow step keeps the session pending');
 $validateResult = $engine->transitionSession($testUser, $sessionId, 'validate', array('reason' => 'Automated final validation'));
 agence_operational_assert($validateResult > 0, 'final workflow step validates the session'.($validateResult > 0 ? '' : ' — '.$engine->error));
+$resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix().'sof_webhook_delivery WHERE entity='.(int) $conf->entity.' AND fk_endpoint='.(int) $webhookId." AND event_code='validation.decided' AND object_id=".((int) $sessionId));
+$validationDelivery = $resql ? $db->fetch_object($resql) : null;
+agence_operational_assert($validationDelivery && (int) $validationDelivery->nb === 2, 'two real validation decisions queue their public webhooks');
 
 $resql = $db->query('SELECT status, theoretical_amount, physical_amount, gap_amount FROM '.$db->prefix().'sof_caisse_session WHERE rowid = '.((int) $sessionId));
 $sessionRow = $resql ? $db->fetch_object($resql) : null;

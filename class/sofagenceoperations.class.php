@@ -2165,6 +2165,12 @@ class SofAgenceOperations
 			return -1;
 		}
 		$this->db->commit();
+		$this->emitIntegrationEvent('bank_deposit.completed', 'bank_deposit', (int) $deposit->id, (int) $deposit->fk_agence, array(
+			'ref' => $deposit->ref, 'stage' => 'reconciled', 'amount' => (float) $deposit->amount,
+			'fk_caisse_source' => (int) $deposit->fk_caisse_source, 'fk_bank_account' => (int) $bankLine->fk_account,
+			'fk_bank' => (int) $bankLineId, 'reconcile_reference' => trim((string) $reference),
+			'subject' => 'Dépôt bancaire rapproché '.$deposit->ref,
+		), $user);
 		return 1;
 	}
 

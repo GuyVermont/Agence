@@ -2,6 +2,25 @@
 /* Copyright (C) 2026 iPowerWorld */
 
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcommonobject.class.php';
+
+/**
+ * Minimal Dolibarr business object used by the native Notification module.
+ *
+ * Notify::send() expects a CommonObject (not a stdClass): it loads the
+ * optional project and builds substitutions/output paths even for custom
+ * event codes.
+ */
+class SofIntegrationNotificationObject extends SofCommonObject
+{
+	public $element = 'agence';
+	public $table_element = 'sof_caisse_auditlog';
+	public $project = null;
+	public $fk_project = null;
+	public $socid = 0;
+	public $total_ht = 0;
+	public $context = array();
+}
 
 /** Secure integration boundary for PowerERP, Dolibarr and external payment systems. */
 class SofIntegrationService
@@ -150,7 +169,7 @@ class SofIntegrationService
 				continue;
 			}
 			$signature = hash_hmac('sha256', $timestamp.'.'.(string) $delivery->payload, $secret);
-			$headers = array('Content-Type: application/cloudevents+json', 'User-Agent: PowerERP-Agence/2.3', 'X-PowerERP-Delivery: '.$delivery->delivery_ref, 'X-PowerERP-Event: '.$delivery->event_code, 'X-PowerERP-Timestamp: '.$timestamp, 'X-PowerERP-Signature: sha256='.$signature);
+			$headers = array('Content-Type: application/cloudevents+json', 'User-Agent: PowerERP-Agence/2.4', 'X-PowerERP-Delivery: '.$delivery->delivery_ref, 'X-PowerERP-Event: '.$delivery->event_code, 'X-PowerERP-Timestamp: '.$timestamp, 'X-PowerERP-Signature: sha256='.$signature);
 			$response = getURLContent($delivery->endpoint_url, 'POSTALREADYFORMATED', $delivery->payload, 0, $headers, array('https'), 0, 1, 5, max(5, getDolGlobalInt('AGENCE_WEBHOOK_TIMEOUT_SECONDS', 15)));
 			$http = (int) ($response['http_code'] ?? 0);
 			$attempts = (int) $delivery->attempts + 1;
@@ -233,7 +252,7 @@ class SofIntegrationService
 		$syncId = (int) $this->db->last_insert_id($this->db->prefix().'sof_integration_sync');
 		$url = (string) $connector->endpoint_url;
 		if ($connector->remote_cursor !== null && $connector->remote_cursor !== '') $url .= (strpos($url, '?') === false ? '?' : '&').'cursor='.rawurlencode($connector->remote_cursor);
-		$headers = array('Accept: application/json', 'User-Agent: PowerERP-Agence/2.3');
+		$headers = array('Accept: application/json', 'User-Agent: PowerERP-Agence/2.4');
 		$credential = $connector->credential_encrypted ? dolDecrypt($connector->credential_encrypted) : '';
 		if ($connector->auth_type === 'bearer') $headers[] = 'Authorization: Bearer '.$credential;
 		elseif ($connector->auth_type === 'api_key') $headers[] = 'X-API-Key: '.$credential;
@@ -332,7 +351,7 @@ class SofIntegrationService
 			'webhooks' => $this->exportResource('sof_webhook_endpoint', array('ref','label','endpoint_url','event_filter','fk_agence','max_attempts','status')),
 			'connectors' => $this->exportResource('sof_integration_connector', array('ref','label','connector_type','endpoint_url','auth_type','fk_agence','fk_bank_account','polling_minutes','status')),
 		);
-		$package = array('format' => 'powererp-agence-configuration', 'format_version' => 1, 'module_version' => '2.4.0', 'editor' => 'iPowerWorld', 'source_environment' => $environment, 'generated_at' => gmdate('c'), 'payload' => $payload);
+		$package = array('format' => 'powererp-agence-configuration', 'format_version' => 1, 'module_version' => '2.4.1', 'editor' => 'iPowerWorld', 'source_environment' => $environment, 'generated_at' => gmdate('c'), 'payload' => $payload);
 		$package['checksum'] = hash('sha256', json_encode($package, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 		$this->logConfigTransfer($user, 'export', $environment, '', $package['checksum'], true, array('resources' => array_map('count', array_filter($payload, 'is_array'))), 1);
 		return $package;
@@ -399,7 +418,7 @@ class SofIntegrationService
 			$resql = $this->db->query('SELECT COUNT(*) nb FROM '.$this->db->prefix().$from.' AND entity='.$this->entity());
 			$row = $resql ? $this->db->fetch_object($resql) : null; $counts[$key] = $row ? (int) $row->nb : -1;
 		}
-		return array('status' => in_array(-1, $counts, true) ? 'degraded' : 'ok', 'module' => 'agence', 'version' => '2.4.0', 'entity' => $this->entity(), 'time' => gmdate('c'), 'queues' => $counts);
+		return array('status' => in_array(-1, $counts, true) ? 'degraded' : 'ok', 'module' => 'agence', 'version' => '2.4.1', 'entity' => $this->entity(), 'time' => gmdate('c'), 'queues' => $counts);
 	}
 
 	private function sendDolibarrNotification($eventCode, $objectType, $objectId, $fkAgence, array $data, User $actor = null)
@@ -410,9 +429,11 @@ class SofIntegrationService
 		if ($actor) $user = $actor;
 		try {
 			require_once DOL_DOCUMENT_ROOT.'/core/class/notify.class.php';
-			$object = new stdClass();
+			$object = new SofIntegrationNotificationObject($this->db);
 			$object->id = (int) $objectId; $object->rowid = (int) $objectId; $object->ref = (string) ($data['ref'] ?? strtoupper($objectType).'-'.$objectId);
-			$object->element = 'agence'; $object->elementtype = 'agence'; $object->socid = (int) ($data['fk_soc'] ?? 0); $object->fk_agence = (int) $fkAgence;
+			$object->entity = $this->entity(); $object->elementtype = 'agence'; $object->socid = (int) ($data['fk_soc'] ?? 0); $object->fk_agence = (int) $fkAgence;
+			$object->label = (string) ($data['subject'] ?? $object->ref);
+			$object->total_ht = isset($data['amount']) ? (float) $data['amount'] : 0;
 			$object->context = array('agence_event' => $eventCode, 'agence_data' => $data);
 			$notify = new Notify($this->db);
 			$result = $notify->send(self::EVENTS[$eventCode], $object);
