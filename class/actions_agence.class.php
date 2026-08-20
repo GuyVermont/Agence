@@ -29,6 +29,8 @@ class ActionsAgence
 	/** Display agency/session linkage on native invoice, payment and bank cards. */
 	public function formObjectOptions($parameters, &$object, &$action, $hookmanager)
 	{
+		global $langs;
+		$langs->loadLangs(array('agence@agence'));
 		if (!isModEnabled('agence') || empty($object->id)) {
 			return 0;
 		}
@@ -56,7 +58,7 @@ class ActionsAgence
 			$row = $resql ? $this->db->fetch_object($resql) : null;
 		}
 		if ($row) {
-			$this->resprints = '<tr><td>Contexte Agence</td><td>';
+			$this->resprints = '<tr><td>'.$langs->trans('AgencyContext').'</td><td>';
 			$this->resprints .= dol_escape_htmltag(trim($row->agence_ref.' / '.$row->caisse_ref.' / '.$row->session_ref.' / '.$row->das_ref, ' /'));
 			$this->resprints .= '</td></tr>';
 			return 0;
@@ -67,12 +69,13 @@ class ActionsAgence
 	/** Add a direct collection action on validated customer invoices. */
 	public function addMoreActionsButtons($parameters, &$object, &$action, $hookmanager)
 	{
-		global $user;
+		global $user, $langs;
+		$langs->loadLangs(array('agence@agence'));
 		if (!isModEnabled('agence') || empty($object->id) || empty($object->element) || $object->element !== 'facture') {
 			return 0;
 		}
 		if ($user->hasRight('agence', 'mouvement', 'cashin') && (int) $object->statut === 1 && empty($object->paye)) {
-			$this->resprints = '<a class="butAction" href="'.dol_buildpath('/agence/mouvement/encaisser.php', 1).'?fk_facture='.(int) $object->id.'">Encaisser via Agence</a>';
+			$this->resprints = '<a class="butAction" href="'.dol_buildpath('/agence/mouvement/encaisser.php', 1).'?fk_facture='.(int) $object->id.'">'.$langs->trans('CollectViaAgency').'</a>';
 			return 0;
 		}
 		return 0;

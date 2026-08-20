@@ -36,7 +36,7 @@ print load_fiche_titre($langs->trans('ReportsStatistics'), '', 'chart');
 
 print '<form method="GET" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'">';
 print '<div class="fichecenter">';
-print '<label>Vue métier <select class="flat minwidth200" name="dashboard">';
+print '<label>'.$langs->trans('BusinessView').' <select class="flat minwidth200" name="dashboard">';
 foreach ($dashboards as $key => $definition) {
 	print '<option value="'.dol_escape_htmltag($key).'"'.($key === $dashboardKey ? ' selected' : '').'>'.dol_escape_htmltag($definition['label']).'</option>';
 }

@@ -8,6 +8,7 @@ php operational_check.php
 php lifecycle_qualification_check.php
 php industrial_operations_check.php
 php integration_ecosystem_check.php
+php translation_check.php
 php concurrency_check.php
 php entity_isolation_check.php
 ```
@@ -21,6 +22,8 @@ Le test de cycle qualifie les transitions différé/litige/régularisation/clôt
 Le test industriel qualifie les notifications internes et la mise en file e-mail/SMS sans émission externe, les escalades, les imports et rapprochements banque/Orange Money/Mobile Money, la création et mise à jour en masse des référentiels, le recouvrement, la reprise d'erreur, la contrepassation, la conservation et le diagnostic. Il s'exécute dans une transaction et annule toutes ses fixtures.
 
 Le test d’écosystème qualifie les tables d’intégration, le chiffrement des secrets, l’idempotence et la signature des webhooks, la pagination BI sans doublon, les connecteurs, l’exclusion des secrets du paquet de configuration, les événements Notification Dolibarr, le contrat de santé REST et le refus HTTP 401 sans authentification.
+
+Le contrôle des traductions vérifie toutes les clés visibles des champs, listes de valeurs, paramètres, menus, permissions et codes métier dans les catalogues français et anglais. Il refuse aussi les doublons et les traductions vides.
 
 La recette navigateur utilise une fixture temporaire :
 

@@ -8,6 +8,7 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_operations.lib.php';
 
@@ -280,7 +281,8 @@ function agence_render_object_list_page($defaultKey, $allowed = array())
 	print '<div class="fichecenter">';
 	print '<input type="text" class="flat minwidth300" name="search_all" aria-label="'.dol_escape_htmltag($langs->trans('Search')).'" value="'.dol_escape_htmltag($searchAll).'" placeholder="'.$langs->trans('Search').'">';
 	if (isset($object->fields['status'])) {
-		print ' <input type="text" class="flat width75" name="search_status" aria-label="'.dol_escape_htmltag($langs->trans('Status')).'" value="'.dol_escape_htmltag($searchStatus).'" placeholder="'.$langs->trans('Status').'">';
+		$statusOptions = !empty($object->fields['status']['arrayofkeyval']) ? $object->fields['status']['arrayofkeyval'] : agence_business_input_options('status', $key);
+		print ' <label>'.$langs->trans('Status').' '.agence_select_array('search_status', $searchStatus, $statusOptions, false).'</label>';
 	}
 	print ' <input type="submit" class="button smallpaddingimp" value="'.$langs->trans('Search').'">';
 	print '</div>';
@@ -537,7 +539,7 @@ function agence_print_object_form($key, $object, $action, $config)
 		$value = isset($object->$fieldKey) ? $object->$fieldKey : (isset($field['default']) ? $field['default'] : '');
 		print '<tr>';
 		print '<td class="titlefieldcreate'.(!empty($field['notnull']) ? ' fieldrequired' : '').'"><label for="'.dol_escape_htmltag($fieldKey).'">'.$langs->trans($field['label']).(!empty($field['notnull']) ? ' <span class="required">*</span>' : '').'</label></td>';
-		print '<td>'.agence_render_input_field($form, $fieldKey, $value, $field).'</td>';
+		print '<td>'.agence_render_input_field($form, $fieldKey, $value, $field, $key).'</td>';
 		print '</tr>';
 	}
 	print '</table>';
@@ -600,13 +602,17 @@ function agence_print_object_view($key, $object, $config, $canwrite)
  * @param array<string,mixed> $field    Field definition
  * @return string
  */
-function agence_render_input_field($form, $key, $value, $field)
+function agence_render_input_field($form, $key, $value, $field, $objectKey = '')
 {
 	$type = empty($field['type']) ? 'varchar' : $field['type'];
 	$id = dol_escape_htmltag($key);
 	$required = !empty($field['notnull']) ? ' required' : '';
 	if (!empty($field['arrayofkeyval']) && is_array($field['arrayofkeyval'])) {
 		return agence_select_array($key, $value, $field['arrayofkeyval'], !empty($field['notnull']));
+	}
+	$businessOptions = agence_business_input_options($key, $objectKey);
+	if (!empty($businessOptions)) {
+		return agence_select_array($key, $value, $businessOptions, !empty($field['notnull']));
 	}
 	if (preg_match('/User:user/i', $type)) {
 		return $form->select_dolusers($value, $key, 1, null, 0, '', '', '', 0, 0, '', 0, '', 'minwidth300');
@@ -651,14 +657,58 @@ function agence_render_input_field($form, $key, $value, $field)
  */
 function agence_select_array($name, $value, $options, $required = false)
 {
+	global $langs;
 	$out = '<select id="'.dol_escape_htmltag($name).'" class="flat minwidth200" name="'.dol_escape_htmltag($name).'"'.($required ? ' required' : '').'>';
 	$out .= '<option value="">&nbsp;</option>';
 	foreach ($options as $key => $label) {
 		$selected = ((string) $key === (string) $value) ? ' selected' : '';
-		$out .= '<option value="'.dol_escape_htmltag((string) $key).'"'.$selected.'>'.dol_escape_htmltag((string) $label).'</option>';
+		$out .= '<option value="'.dol_escape_htmltag((string) $key).'"'.$selected.'>'.dol_escape_htmltag($langs->trans((string) $label)).'</option>';
 	}
 	$out .= '</select>';
 	return $out;
+}
+
+/** Return translated choices for stored business codes edited by generic forms. */
+function agence_business_input_options($fieldKey, $objectKey = '')
+{
+	$options = array(
+		'caisse_type'=>array('cash'=>'PhysicalCashDesk', 'virtual'=>'VirtualCashDesk', 'takepos'=>'TakePOSCashDesk', 'mobile'=>'MobileCashDesk'),
+		'session_type'=>array('daily'=>'DailySession', 'exceptional'=>'ExceptionalSession'),
+		'trigger_type'=>array('manual'=>'ManualTrigger', 'planned'=>'PlannedTrigger', 'surprise'=>'SurpriseTrigger', 'automatic'=>'AutomaticTrigger'),
+		'comptage_type'=>array('opening'=>'OpeningCashCount', 'closing'=>'ClosingCashCount', 'control'=>'ControlCashCount', 'surprise'=>'SurpriseCashCount'),
+		'gap_type'=>array('cash'=>'CashGapType', 'card'=>'CardGapType', 'cheque'=>'ChequeGapType', 'transfer'=>'TransferGapType', 'mobile_money'=>'MobileMoneyGapType', 'total'=>'TotalGapType'),
+		'severity'=>array('info'=>'InformationSeverity', 'warning'=>'WarningSeverity', 'major'=>'MajorSeverity', 'critical'=>'CriticalSeverity'),
+		'scope_type'=>array('global'=>'GlobalScope', 'agency'=>'AgencyScope', 'cashdesk'=>'CashDeskScope', 'das'=>'DASScope', 'user'=>'UserScope'),
+		'risk_level'=>array('low'=>'LowRisk', 'normal'=>'NormalRisk', 'medium'=>'MediumRisk', 'high'=>'HighRisk', 'critical'=>'CriticalRisk'),
+		'risk_status'=>array('low'=>'LowRisk', 'normal'=>'NormalRisk', 'medium'=>'MediumRisk', 'high'=>'HighRisk', 'critical'=>'CriticalRisk', 'blocked'=>'Blocked'),
+		'urgency_level'=>array('low'=>'LowPriority', 'normal'=>'NormalPriority', 'high'=>'HighPriority', 'critical'=>'CriticalPriority'),
+		'validation_mode'=>array('sequential'=>'SequentialValidation', 'parallel'=>'ParallelValidation', 'single'=>'SingleValidation'),
+		'transfer_type'=>array('cash'=>'CashTransfer', 'vault'=>'VaultTransfer', 'bank'=>'BankTransfer', 'internal'=>'InternalTransfer'),
+		'payment_component_type'=>array('real'=>'ActualPaymentComponent', 'deferred'=>'DeferredPaymentComponent', 'credit_note'=>'CreditNotePaymentComponent'),
+		'cashier_signature_status'=>array('pending'=>'SignaturePending', 'signed'=>'Signed', 'refused'=>'SignatureRefused', 'not_required'=>'SignatureNotRequired'),
+	);
+	if ($fieldKey !== 'status') return isset($options[$fieldKey]) ? $options[$fieldKey] : array();
+	$statusOptions = array(
+		'agence'=>array(1=>'Active', 2=>'Suspended', 3=>'Closed', 4=>'Test', 9=>'Archived'),
+		'caisse'=>array(0=>'Draft', 1=>'Active', 2=>'Suspended', 9=>'Archived'),
+		'das'=>array(0=>'Disabled', 1=>'Active'),
+		'session'=>array(0=>'Draft', 1=>'Opened', 2=>'Operating', 3=>'Paused', 4=>'ControlInProgress', 5=>'ClosingInProgress', 6=>'Closed', 7=>'Validated', 8=>'Accounted', 9=>'Canceled', 10=>'Blocked'),
+		'paiementdiffere'=>array(0=>'Draft', 1=>'Validated', 2=>'Invoiced', 3=>'PartiallyPaid', 4=>'Paid', 5=>'Late', 6=>'Disputed', 7=>'Closed', 9=>'Canceled'),
+		'boncommande'=>array(0=>'Received', 1=>'Checked', 2=>'Used', 3=>'PartiallyUsed', 4=>'Expired', 5=>'Rejected', 6=>'Invoiced', 7=>'Paid'),
+		'bst'=>array(0=>'Issued', 1=>'Validated', 2=>'Consumed', 3=>'Invoiced', 4=>'Paid', 9=>'Canceled', 10=>'Disputed'),
+		'instruction'=>array(0=>'PendingValidation', 1=>'Accepted', 2=>'Executed', 3=>'Invoiced', 4=>'Paid', 5=>'Rejected', 9=>'Canceled'),
+		'avoir'=>array(0=>'PendingValidation', 1=>'PartiallyUsed', 2=>'Consumed', 9=>'Canceled'),
+		'ecart'=>array(0=>'Open', 1=>'UnderReview', 2=>'Approved', 3=>'Processed', 9=>'Canceled'),
+		'controle'=>array(0=>'Planned', 1=>'ControlInProgress', 2=>'Completed', 9=>'Canceled'),
+		'cloture'=>array(0=>'Draft', 1=>'PendingValidation', 2=>'Validated', 3=>'Accounted', 9=>'Canceled'),
+		'transfert'=>array(0=>'Draft', 1=>'Sent', 2=>'Received', 9=>'Canceled'),
+		'depotbanque'=>array(0=>'Draft', 1=>'Deposited', 2=>'PendingReconciliation', 3=>'Reconciled', 9=>'Canceled'),
+		'alerte'=>array(0=>'Open', 1=>'Read', 2=>'Closed'),
+		'validation'=>array(0=>'PendingValidation', 1=>'Approved', 2=>'Rejected'),
+		'mouvement'=>array(0=>'Canceled', 1=>'Validated'),
+		'remboursement'=>array(0=>'Requested', 1=>'PendingValidation', 2=>'Approved', 3=>'Executed', 4=>'Accounted', 8=>'Rejected', 9=>'Canceled'),
+	);
+	return isset($statusOptions[$objectKey]) ? $statusOptions[$objectKey] : array(0=>'Disabled', 1=>'Active');
 }
 
 /**
@@ -673,16 +723,16 @@ function agence_select_internal_object($name, $value, $required = false)
 	global $db, $langs, $user;
 
 	$map = array(
-		'fk_agence' => array('table' => 'sof_agence', 'label' => 'Agency'),
-		'fk_caisse' => array('table' => 'sof_caisse', 'label' => 'CashDesk'),
-		'fk_session' => array('table' => 'sof_caisse_session', 'label' => 'CashSession'),
-		'fk_das' => array('table' => 'sof_das', 'label' => 'DAS'),
+		'fk_agence' => array('table' => 'sof_agence', 'label' => 'Agency', 'haslabel' => true),
+		'fk_caisse' => array('table' => 'sof_caisse', 'label' => 'CashDesk', 'haslabel' => true),
+		'fk_session' => array('table' => 'sof_caisse_session', 'label' => 'CashSession', 'haslabel' => false),
+		'fk_das' => array('table' => 'sof_das', 'label' => 'DAS', 'haslabel' => true),
 	);
 	if (empty($map[$name])) {
 		return '<input id="'.dol_escape_htmltag($name).'" type="number" class="flat width100" name="'.dol_escape_htmltag($name).'" value="'.dol_escape_htmltag((string) $value).'"'.($required ? ' required' : '').'>';
 	}
 	$table = $map[$name]['table'];
-	$sql = 'SELECT rowid, ref, label FROM '.$db->prefix().$table.' WHERE entity IN ('.getEntity($table).')';
+	$sql = 'SELECT rowid, ref'.($map[$name]['haslabel'] ? ', label' : '').' FROM '.$db->prefix().$table.' WHERE entity IN ('.getEntity($table).')';
 	$scopeIds = SofAgenceService::allowedAgencyIds($db, $user);
 	if ($scopeIds !== null && in_array($name, array('fk_agence', 'fk_caisse', 'fk_session'), true)) {
 		if (empty($scopeIds)) {
@@ -701,7 +751,7 @@ function agence_select_internal_object($name, $value, $required = false)
 	$out = '<select id="'.dol_escape_htmltag($name).'" class="flat minwidth300" name="'.dol_escape_htmltag($name).'"'.($required ? ' required' : '').'>';
 	$out .= '<option value="">&nbsp;</option>';
 	while ($obj = $db->fetch_object($resql)) {
-		$label = trim($obj->ref.' - '.$obj->label);
+		$label = trim($obj->ref.($map[$name]['haslabel'] && !empty($obj->label) ? ' - '.$obj->label : ''));
 		$selected = ((int) $value === (int) $obj->rowid) ? ' selected' : '';
 		$out .= '<option value="'.((int) $obj->rowid).'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
 	}
@@ -726,7 +776,20 @@ function agence_format_field_value($fieldKey, $value, $field, $objectKey = '')
 		return '<span class="opacitymedium">-</span>';
 	}
 	if (!empty($field['arrayofkeyval']) && is_array($field['arrayofkeyval']) && isset($field['arrayofkeyval'][$value])) {
-		return dol_escape_htmltag($field['arrayofkeyval'][$value]);
+		return dol_escape_htmltag($langs->trans($field['arrayofkeyval'][$value]));
+	}
+	$businessCategories = array(
+		'type_operation'=>'operation_type', 'operation_type'=>'operation_type', 'direction'=>'direction', 'payment_mode'=>'payment_mode',
+		'severity'=>'severity', 'session_type'=>'session_type', 'connector_type'=>'connector_type', 'channel'=>'channel',
+		'decision'=>'decision', 'object_type'=>'object_type', 'source_type'=>'source_type',
+		'role_code'=>'role', 'user_role'=>'role', 'role_required'=>'role', 'scope_type'=>'scope_type',
+		'caisse_type'=>'cashdesk_type', 'trigger_type'=>'trigger_type', 'comptage_type'=>'count_type', 'gap_type'=>'gap_type',
+		'validation_mode'=>'validation_mode', 'urgency_level'=>'urgency', 'risk_level'=>'risk', 'risk_status'=>'risk',
+		'transfer_type'=>'transfer_type', 'payment_component_type'=>'payment_component_type', 'pos_source'=>'pos_source',
+		'cashier_signature_status'=>'signature_status',
+	);
+	if (isset($businessCategories[$fieldKey])) {
+		return dol_escape_htmltag(agence_translate_business_code($businessCategories[$fieldKey], $value, $objectKey));
 	}
 	$type = empty($field['type']) ? '' : $field['type'];
 	if (preg_match('/^(double|real|price)/i', $type)) {
@@ -746,8 +809,19 @@ function agence_format_field_value($fieldKey, $value, $field, $objectKey = '')
 	if (preg_match('/^(int|integer)/i', $type) && strpos($fieldKey, 'fk_') === 0) {
 		return agence_format_foreign_value($fieldKey, (int) $value);
 	}
-	if ($fieldKey === 'status' || preg_match('/_status$/', $fieldKey)) {
-		return '<span class="badge badge-status'.((int) $value).'">'.dol_escape_htmltag((string) $value).'</span>';
+	if ($fieldKey === 'status') {
+		return '<span class="badge badge-status'.((int) $value).'">'.dol_escape_htmltag(agence_translate_business_code('status', $value, $objectKey)).'</span>';
+	}
+	if (preg_match('/_status$/', $fieldKey)) {
+		if ($fieldKey === 'previous_session_status') {
+			return '<span class="badge badge-status'.((int) $value).'">'.dol_escape_htmltag(agence_translate_business_code('status', $value, 'session')).'</span>';
+		}
+		if (in_array($fieldKey, array('accounting_status', 'reconcile_status', 'billing_status', 'validation_status', 'use_status', 'freeze_status'), true)) {
+			return '<span class="badge badge-status'.((int) $value).'">'.dol_escape_htmltag(agence_translate_business_code($fieldKey, $value, $objectKey)).'</span>';
+		}
+		$statusContext = array('accounting_status'=>'AccountingStatusNumber', 'reconcile_status'=>'ReconcileStatusNumber', 'billing_status'=>'BillingStatusNumber', 'validation_status'=>'ValidationStatusNumber', 'use_status'=>'UseStatusNumber', 'freeze_status'=>'FreezeStatusNumber');
+		$key = isset($statusContext[$fieldKey]) ? $statusContext[$fieldKey] : 'StatusNumber';
+		return '<span class="badge badge-status'.((int) $value).'">'.dol_escape_htmltag($langs->trans($key, (int) $value)).'</span>';
 	}
 	return dol_escape_htmltag((string) $value);
 }
@@ -761,30 +835,54 @@ function agence_format_field_value($fieldKey, $value, $field, $objectKey = '')
  */
 function agence_format_foreign_value($fieldKey, $value)
 {
-	global $db;
+	global $db, $langs;
 
 	if ($value <= 0) {
 		return '<span class="opacitymedium">-</span>';
 	}
 	$standardLinks = array(
-		'fk_soc' => array('/societe/card.php?socid=', 'ThirdPartyShort'),
-		'fk_facture' => array('/compta/facture/card.php?facid=', 'Invoice'),
-		'fk_commande' => array('/commande/card.php?id=', 'Order'),
-		'fk_paiement' => array('/compta/paiement/card.php?id=', 'Payment'),
-		'fk_bank' => array('/compta/bank/card.php?id=', 'Bank'),
-		'fk_product' => array('/product/card.php?id=', 'Product'),
+		'fk_soc' => array('/societe/card.php?socid=', 'societe', array('nom')),
+		'fk_soc_payer' => array('/societe/card.php?socid=', 'societe', array('nom')),
+		'fk_facture' => array('/compta/facture/card.php?facid=', 'facture', array('ref')),
+		'fk_facture_origin' => array('/compta/facture/card.php?facid=', 'facture', array('ref')),
+		'fk_facture_avoir' => array('/compta/facture/card.php?facid=', 'facture', array('ref')),
+		'fk_commande' => array('/commande/card.php?id=', 'commande', array('ref')),
+		'fk_paiement' => array('/compta/paiement/card.php?id=', 'paiement', array('ref')),
+		'fk_paiement_origin' => array('/compta/paiement/card.php?id=', 'paiement', array('ref')),
+		'fk_payment_various' => array('/compta/bank/various_payment/card.php?id=', 'payment_various', array('ref', 'label')),
+		'fk_bank' => array('/compta/bank/line.php?rowid=', 'bank', array('label')),
+		'fk_product' => array('/product/card.php?id=', 'product', array('ref', 'label')),
+		'fk_bank_account' => array('/compta/bank/card.php?id=', 'bank_account', array('ref', 'label')),
+		'fk_bank_account_card' => array('/compta/bank/card.php?id=', 'bank_account', array('ref', 'label')),
+		'fk_bank_account_cheque' => array('/compta/bank/card.php?id=', 'bank_account', array('ref', 'label')),
+		'fk_bank_account_mobile' => array('/compta/bank/card.php?id=', 'bank_account', array('ref', 'label')),
+		'fk_bank_account_other' => array('/compta/bank/card.php?id=', 'bank_account', array('ref', 'label')),
+		'fk_contact' => array('/contact/card.php?id=', 'socpeople', array('firstname', 'lastname')),
+		'fk_contact_signatory' => array('/contact/card.php?id=', 'socpeople', array('firstname', 'lastname')),
+		'fk_contact_beneficiary' => array('/contact/card.php?id=', 'socpeople', array('firstname', 'lastname')),
 	);
 	if (isset($standardLinks[$fieldKey])) {
-		return '<a href="'.dol_buildpath($standardLinks[$fieldKey][0].$value, 1).'">#'.$value.'</a>';
+		$meta = $standardLinks[$fieldKey];
+		$label = agence_get_standard_object_label($meta[1], $meta[2], $value);
+		return '<a href="'.dol_buildpath($meta[0].$value, 1).'">'.dol_escape_htmltag($label).'</a>';
 	}
 	$internalLinks = array(
-		'fk_agence' => array('agence', 'sof_agence'),
-		'fk_caisse' => array('caisse', 'sof_caisse'),
-		'fk_session' => array('session', 'sof_caisse_session'),
-		'fk_das' => array('das', 'sof_das'),
+		'fk_agence' => array('agence', 'sof_agence', true),
+		'fk_agence_followup' => array('agence', 'sof_agence', true),
+		'fk_caisse' => array('caisse', 'sof_caisse', true),
+		'fk_caisse_source' => array('caisse', 'sof_caisse', true),
+		'fk_caisse_dest' => array('caisse', 'sof_caisse', true),
+		'fk_caisse_destination' => array('caisse', 'sof_caisse', true),
+		'fk_session' => array('session', 'sof_caisse_session', false),
+		'fk_session_source' => array('session', 'sof_caisse_session', false),
+		'fk_das' => array('das', 'sof_das', true),
+		'fk_cloture' => array('cloture', 'sof_caisse_cloture', false),
+		'fk_controle' => array('controle', 'sof_caisse_controle', false),
+		'fk_depot_banque' => array('depotbanque', 'sof_caisse_depot_banque', false),
+		'fk_mouvement_origin' => array('mouvement', 'sof_caisse_mouvement', true),
 	);
 	if (isset($internalLinks[$fieldKey])) {
-		$label = agence_get_internal_object_label($internalLinks[$fieldKey][1], $value);
+		$label = agence_get_internal_object_label($internalLinks[$fieldKey][1], $value, $internalLinks[$fieldKey][2]);
 		return '<a href="'.agence_object_card_url($internalLinks[$fieldKey][0], $value).'">'.dol_escape_htmltag($label).'</a>';
 	}
 	if (strpos($fieldKey, 'fk_user') === 0) {
@@ -794,7 +892,47 @@ function agence_format_foreign_value($fieldKey, $value)
 			return $tmpuser->getNomUrl(1);
 		}
 	}
-	return '#'.((int) $value);
+	return dol_escape_htmltag($langs->trans('ReferenceNumber', (int) $value));
+}
+
+/**
+ * Return a human-readable label for a standard Dolibarr object.
+ *
+ * @param string            $tableElement Table element
+ * @param array<int,string> $columns      Display columns
+ * @param int               $id           Row id
+ * @return string
+ */
+function agence_get_standard_object_label($tableElement, $columns, $id)
+{
+	global $db, $langs;
+	static $cache = array();
+
+	$key = $tableElement.':'.$id;
+	if (isset($cache[$key])) {
+		return $cache[$key];
+	}
+	$allowedTables = array('societe', 'facture', 'commande', 'paiement', 'payment_various', 'bank', 'product', 'bank_account', 'socpeople');
+	$allowedColumns = array('nom', 'ref', 'label', 'firstname', 'lastname');
+	if (!in_array($tableElement, $allowedTables, true) || array_diff($columns, $allowedColumns)) {
+		return $langs->trans('ReferenceNumber', (int) $id);
+	}
+	$sql = 'SELECT '.implode(', ', $columns).' FROM '.$db->prefix().$tableElement.' WHERE rowid = '.((int) $id);
+	$resql = $db->query($sql);
+	if ($resql && ($obj = $db->fetch_object($resql))) {
+		$parts = array();
+		foreach ($columns as $column) {
+			if (isset($obj->{$column}) && trim((string) $obj->{$column}) !== '') {
+				$parts[] = trim((string) $obj->{$column});
+			}
+		}
+		if (!empty($parts)) {
+			$cache[$key] = implode(' - ', $parts);
+			return $cache[$key];
+		}
+	}
+	$cache[$key] = $langs->trans('ReferenceNumber', (int) $id);
+	return $cache[$key];
 }
 
 /**
@@ -804,23 +942,28 @@ function agence_format_foreign_value($fieldKey, $value)
  * @param int    $id           Row id
  * @return string
  */
-function agence_get_internal_object_label($tableElement, $id)
+function agence_get_internal_object_label($tableElement, $id, $hasLabel = true)
 {
-	global $db;
+	global $db, $langs;
 	static $cache = array();
 
 	$key = $tableElement.':'.$id;
 	if (isset($cache[$key])) {
 		return $cache[$key];
 	}
-	$sql = 'SELECT rowid, ref, label FROM '.$db->prefix().$tableElement.' WHERE rowid = '.((int) $id);
+	$allowedTables = array('sof_agence', 'sof_caisse', 'sof_caisse_session', 'sof_das', 'sof_caisse_cloture', 'sof_caisse_controle', 'sof_caisse_depot_banque', 'sof_caisse_mouvement');
+	if (!in_array($tableElement, $allowedTables, true)) {
+		return $langs->trans('ReferenceNumber', (int) $id);
+	}
+	$sql = 'SELECT rowid, ref'.($hasLabel ? ', label' : '').' FROM '.$db->prefix().$tableElement.' WHERE rowid = '.((int) $id);
 	$resql = $db->query($sql);
 	if ($resql && ($obj = $db->fetch_object($resql))) {
-		$label = trim((!empty($obj->ref) ? $obj->ref : '#'.$obj->rowid).' '.(!empty($obj->label) ? '- '.$obj->label : ''));
+		$reference = !empty($obj->ref) ? $obj->ref : $langs->trans('ReferenceNumber', (int) $obj->rowid);
+		$label = trim($reference.' '.($hasLabel && !empty($obj->label) ? '- '.$obj->label : ''));
 		$cache[$key] = $label;
 		return $label;
 	}
-	$cache[$key] = '#'.$id;
+	$cache[$key] = $langs->trans('ReferenceNumber', (int) $id);
 	return $cache[$key];
 }
 

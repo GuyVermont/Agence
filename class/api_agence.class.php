@@ -26,7 +26,7 @@ class Agence extends DolibarrApi
 	{
 		$this->requireApiRead();
 		return array(
-			'name' => 'PowerERP Agence API', 'version' => '2.3.0', 'editor' => 'iPowerWorld',
+			'name' => 'PowerERP Agence API', 'version' => '2.3.1', 'editor' => 'iPowerWorld',
 			'authentication' => 'Dolibarr API key',
 			'resources' => array('health','agencies','cashdesks','bi/{dataset}','webhooks','connectors','configuration'),
 		);

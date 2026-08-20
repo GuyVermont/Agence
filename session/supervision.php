@@ -3,6 +3,7 @@
 
 require '../../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence.lib.php';
 
 $langs->loadLangs(array('agence@agence', 'users'));
 if (!$user->hasRight('agence', 'dashboard', 'direction') && !$user->hasRight('agence', 'session', 'validate') && !$user->hasRight('agence', 'audit', 'read')) {
@@ -76,7 +77,7 @@ while ($agencyResult && ($agency = $db->fetch_object($agencyResult))) {
 	print '<option value="'.$agency->rowid.'"'.($fkAgence === (int) $agency->rowid ? ' selected' : '').'>'.dol_escape_htmltag($agency->label.' ('.$agency->ref.')').'</option>';
 }
 print '</select></label> <label>'.$langs->trans('Status').' <select class="flat" name="status"><option value="">'.$langs->trans('All').'</option>';
-foreach (array(1 => 'Open', 2 => 'Operating', 3 => 'Paused', 4 => 'Control', 5 => 'Closing', 6 => 'Closed', 7 => 'Validated', 8 => 'Accounted', 9 => 'Blocked', 10 => 'Canceled') as $code => $label) {
+foreach (array(1 => 'Opened', 2 => 'Operating', 3 => 'Paused', 4 => 'ControlInProgress', 5 => 'ClosingInProgress', 6 => 'Closed', 7 => 'Validated', 8 => 'Accounted', 9 => 'Canceled', 10 => 'Blocked') as $code => $label) {
 	print '<option value="'.$code.'"'.($statusFilter === $code ? ' selected' : '').'>'.$langs->trans($label).'</option>';
 }
 print '</select></label> <label><input type="checkbox" name="autorefresh" value="1"'.($autorefresh ? ' checked' : '').'> '.$langs->trans('RefreshEveryMinute').'</label> <button class="button" type="submit">'.$langs->trans('Filter').'</button></form>';
@@ -88,7 +89,7 @@ while ($resql && ($row = $db->fetch_object($resql))) {
 	print '<tr class="oddeven"><td><a href="'.dol_buildpath('/agence/session/card.php', 1).'?object=session&id='.$row->rowid.'">'.dol_escape_htmltag($row->ref).'</a></td>';
 	print '<td>'.dol_escape_htmltag($row->agence_label.' ('.$row->agence_ref.')').'</td><td>'.dol_escape_htmltag($row->caisse_label.' ('.$row->caisse_ref.')').'</td>';
 	print '<td>'.dol_escape_htmltag(trim($row->firstname.' '.$row->lastname) ?: $row->login).'</td><td>'.dol_print_date($db->jdate($row->date_opening), 'dayhour').'</td>';
-	print '<td class="right">'.price($row->theoretical_amount).'</td><td class="right">'.price($row->physical_amount).'</td><td class="right">'.price($row->gap_amount).'</td><td>'.((int) $row->status).'</td></tr>';
+	print '<td class="right">'.price($row->theoretical_amount).'</td><td class="right">'.price($row->physical_amount).'</td><td class="right">'.price($row->gap_amount).'</td><td>'.dol_escape_htmltag(agence_translate_business_code('status', $row->status, 'session')).'</td></tr>';
 }
 if ($count === 0) {
 	print '<tr><td colspan="9" class="center opacitymedium">'.$langs->trans('NoRecordFound').'</td></tr>';

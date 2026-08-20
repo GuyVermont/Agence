@@ -89,7 +89,7 @@ function agence_process_business_action($key, $id)
 /** Render contextual actions for operational objects. */
 function agence_print_business_actions($key, $object)
 {
-	global $user;
+	global $langs, $user;
 
 	$id = !empty($object->id) ? (int) $object->id : (int) $object->rowid;
 	if ($id <= 0) {
@@ -99,100 +99,100 @@ function agence_print_business_actions($key, $object)
 	if ($key === 'session') {
 		$status = (int) $object->status;
 		if (in_array($status, array(0, 1, 3, 4), true) && $user->hasRight('agence', 'session', 'open')) {
-			$forms[] = agence_business_form('operate', 'Passer en exploitation');
+			$forms[] = agence_business_form('operate', 'SwitchToOperating');
 		}
 		if (in_array($status, array(1, 2), true) && $user->hasRight('agence', 'session', 'open')) {
-			$forms[] = agence_business_form('pause', 'Mettre en pause', array('reason' => 'Motif'));
+			$forms[] = agence_business_form('pause', 'PauseSession', array('reason' => 'Reason'));
 		}
 		if ($status === 3 && $user->hasRight('agence', 'session', 'open')) {
-			$forms[] = agence_business_form('resume', 'Reprendre');
+			$forms[] = agence_business_form('resume', 'ResumeSession');
 		}
 		if (in_array($status, array(1, 2, 3, 4), true) && $user->hasRight('agence', 'session', 'close')) {
-			$forms[] = agence_business_form('start_close', 'Démarrer la clôture');
+			$forms[] = agence_business_form('start_close', 'StartClosing');
 		}
 		if ($status === 5 && $user->hasRight('agence', 'session', 'close')) {
-			$forms[] = agence_business_form('close', 'Finaliser la clôture', array('physical_amount' => 'Montant physique', 'comment' => 'Commentaire'));
+			$forms[] = agence_business_form('close', 'FinalizeClosing', array('physical_amount' => 'PhysicalAmount', 'comment' => 'Comment'));
 			$forms[] = agence_business_cash_count_form();
 		}
 		if ($status === 6 && $user->hasRight('agence', 'session', 'validate')) {
-			$forms[] = agence_business_form('validate', 'Valider la clôture', array('reason' => 'Commentaire'));
-			$forms[] = agence_business_form('reopen', 'Réouvrir', array('reason' => 'Motif obligatoire'));
+			$forms[] = agence_business_form('validate', 'ValidateCashClosing', array('reason' => 'Comment'));
+			$forms[] = agence_business_form('reopen', 'ReopenSession', array('reason' => 'MandatoryReason'));
 		}
 		if ($status === 7 && $user->hasRight('agence', 'compta', 'post')) {
-			$forms[] = agence_business_form('account', 'Déverser en comptabilité');
+			$forms[] = agence_business_form('account', 'PostToAccounting');
 		}
 		if (in_array($status, array(1, 2, 3), true) && $user->hasRight('agence', 'controle', 'freeze')) {
-			$forms[] = agence_business_form('freeze', 'Geler la session');
+			$forms[] = agence_business_form('freeze', 'FreezeSession');
 		}
 		if ($status === 4 && $user->hasRight('agence', 'controle', 'freeze')) {
-			$forms[] = agence_business_form('unfreeze', 'Lever le gel');
+			$forms[] = agence_business_form('unfreeze', 'UnfreezeSession');
 		}
 	} elseif ($key === 'remboursement') {
 		if (in_array((int) $object->status, array(0, 1), true) && $user->hasRight('agence', 'remboursement', 'validate')) {
-			$forms[] = agence_business_form('validate', 'Approuver', array('approved_amount' => 'Montant approuvé', 'reason' => 'Commentaire'));
-			$forms[] = agence_business_form('reject', 'Rejeter', array('reason' => 'Motif obligatoire'));
+			$forms[] = agence_business_form('validate', 'Approve', array('approved_amount' => 'ApprovedAmount', 'reason' => 'Comment'));
+			$forms[] = agence_business_form('reject', 'Reject', array('reason' => 'MandatoryReason'));
 		}
 		if ((int) $object->status === 2 && $user->hasRight('agence', 'remboursement', 'execute')) {
-			$forms[] = agence_business_form('execute', 'Exécuter le remboursement');
+			$forms[] = agence_business_form('execute', 'ExecuteRefund');
 		}
 	} elseif ($key === 'controle') {
 		if ((int) $object->status === 0 && $user->hasRight('agence', 'controle', 'create') && $user->hasRight('agence', 'controle', 'freeze')) {
-			$forms[] = agence_business_form('start', 'Démarrer et geler la caisse');
+			$forms[] = agence_business_form('start', 'StartControlAndFreezeCashDesk');
 		}
 		if ((int) $object->status === 1 && $user->hasRight('agence', 'controle', 'create') && $user->hasRight('agence', 'controle', 'freeze')) {
-			$forms[] = agence_business_form('complete', 'Terminer le contrôle', array('physical_amount' => 'Montant physique', 'observations' => 'Observations'));
+			$forms[] = agence_business_form('complete', 'CompleteControl', array('physical_amount' => 'PhysicalAmount', 'observations' => 'Observations'));
 		}
 	} elseif ($key === 'transfert' && $user->hasRight('agence', 'transfert', 'create')) {
 		if ((int) $object->status === 0) {
-			$forms[] = agence_business_form('execute', 'Exécuter le transfert');
+			$forms[] = agence_business_form('execute', 'ExecuteTransfer');
 		} elseif ((int) $object->status === 1) {
-			$forms[] = agence_business_form('receive', 'Confirmer la réception');
+			$forms[] = agence_business_form('receive', 'ConfirmReceipt');
 		}
 	} elseif ($key === 'depotbanque') {
 		if ((int) $object->status === 0 && $user->hasRight('agence', 'depotbanque', 'create')) {
-			$forms[] = agence_business_form('execute', 'Exécuter le dépôt');
+			$forms[] = agence_business_form('execute', 'ExecuteDeposit');
 		}
 		if (in_array((int) $object->status, array(1, 2), true) && $user->hasRight('agence', 'depotbanque', 'reconcile')) {
-			$forms[] = agence_business_form('reconcile', 'Rapprocher', array('fk_bank' => 'ID ligne bancaire créditrice', 'reference' => 'Référence'));
+			$forms[] = agence_business_form('reconcile', 'Reconcile', array('fk_bank' => 'CreditBankLineId', 'reference' => 'Ref'));
 		}
 	} elseif ($key === 'alerte') {
 		if ((int) $object->status === 0) {
-			$forms[] = agence_business_form('read', 'Marquer comme lue');
+			$forms[] = agence_business_form('read', 'MarkAsRead');
 		}
 		if ((int) $object->status < 2) {
-			$forms[] = agence_business_form('close', 'Clore l’alerte');
+			$forms[] = agence_business_form('close', 'CloseAlert');
 		}
 	} elseif ($key === 'ecart' && (int) $object->status < 3 && $user->hasRight('agence', 'ecart', 'manage')) {
-		$forms[] = agence_business_form('resolve', 'Traiter l’écart', array('reason' => 'Justification', 'decision' => 'Décision'));
+		$forms[] = agence_business_form('resolve', 'ProcessCashGap', array('reason' => 'Justification', 'decision' => 'Decision'));
 	} elseif ($key === 'paiementdiffere') {
 		if ((int) $object->status === 0 && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
-			$forms[] = agence_business_form('validate', 'Valider');
+			$forms[] = agence_business_form('validate', 'Validate');
 		}
 		if (in_array((int) $object->status, array(1, 2, 3, 5), true) && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
-			$forms[] = agence_business_form('dispute', 'Mettre en litige', array('reason' => 'Motif obligatoire'));
+			$forms[] = agence_business_form('dispute', 'OpenDispute', array('reason' => 'MandatoryReason'));
 		}
 		if ((int) $object->status === 6 && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
-			$forms[] = agence_business_form('regularize', 'Régulariser le litige', array('reason' => 'Mesure de régularisation'));
+			$forms[] = agence_business_form('regularize', 'RegularizeDispute', array('reason' => 'RegularizationMeasure'));
 		}
 		if ((int) $object->status === 4 && $user->hasRight('agence', 'paiementdiffere', 'validate')) {
-			$forms[] = agence_business_form('close', 'Clore définitivement', array('reason' => 'Motif de clôture'));
+			$forms[] = agence_business_form('close', 'ClosePermanently', array('reason' => 'ClosureReason'));
 		}
 	} elseif (in_array($key, array('boncommande', 'bst', 'instruction'), true) && (int) $object->status === 0) {
-		$forms[] = agence_business_form('validate', 'Valider');
-		$forms[] = agence_business_form('reject', 'Rejeter', array('reason' => 'Motif obligatoire'));
+		$forms[] = agence_business_form('validate', 'Validate');
+		$forms[] = agence_business_form('reject', 'Reject', array('reason' => 'MandatoryReason'));
 	} elseif ($key === 'avoir') {
 		if (empty($object->validation_status) && $user->hasRight('agence', 'avoir', 'validate')) {
-			$forms[] = agence_business_form('validate', 'Valider l’avoir');
+			$forms[] = agence_business_form('validate', 'ValidateCreditNote');
 		}
 		if (!empty($object->validation_status) && (float) $object->remaining_amount > 0 && $user->hasRight('agence', 'avoir', 'use')) {
-			$forms[] = agence_business_form('use', 'Consommer l’avoir', array('amount' => 'Montant à consommer'));
+			$forms[] = agence_business_form('use', 'ConsumeCreditNote', array('amount' => 'AmountToConsume'));
 		}
 	}
 
 	if (empty($forms)) {
 		return;
 	}
-	print '<div class="fichecenter"><div class="underbanner clearboth"></div><h3>Actions métier</h3>';
+	print '<div class="fichecenter"><div class="underbanner clearboth"></div><h3>'.$langs->trans('BusinessActions').'</h3>';
 	foreach ($forms as $form) {
 		print $form;
 	}
@@ -202,18 +202,20 @@ function agence_print_business_actions($key, $object)
 /** Build a compact POST form for a business transition. */
 function agence_business_form($action, $label, array $fields = array())
 {
+	global $langs;
 	$html = '<form method="POST" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'" class="inline-block valignmiddle marginrightonly marginbottomonly">';
 	$html .= '<input type="hidden" name="token" value="'.newToken().'">';
 	$html .= '<input type="hidden" name="action" value="business">';
 	$html .= '<input type="hidden" name="business_action" value="'.dol_escape_htmltag($action).'">';
 	$html .= '<input type="hidden" name="id" value="'.((int) GETPOST('id', 'int')).'">';
 	$html .= '<input type="hidden" name="object" value="'.dol_escape_htmltag(GETPOST('object', 'alpha')).'">';
-	foreach ($fields as $name => $placeholder) {
+	foreach ($fields as $name => $placeholderKey) {
 		$type = preg_match('/amount|fk_bank/', $name) ? 'number' : 'text';
 		$step = $type === 'number' ? ' step="0.01"' : '';
+		$placeholder = $langs->trans($placeholderKey);
 		$html .= '<input class="flat minwidth150" type="'.$type.'"'.$step.' name="'.dol_escape_htmltag($name).'" aria-label="'.dol_escape_htmltag($placeholder).'" placeholder="'.dol_escape_htmltag($placeholder).'"> ';
 	}
-	$html .= '<button class="butAction" type="submit">'.dol_escape_htmltag($label).'</button></form>';
+	$html .= '<button class="butAction" type="submit">'.dol_escape_htmltag($langs->trans($label)).'</button></form>';
 	return $html;
 }
 
@@ -235,14 +237,15 @@ function agence_cash_denominations()
 /** Build the detailed physical cash count form used for closing. */
 function agence_business_cash_count_form()
 {
-	$html = '<details class="agence-cash-count marginbottomonly"><summary class="butAction">Comptage détaillé des coupures</summary>';
+	global $langs;
+	$html = '<details class="agence-cash-count marginbottomonly"><summary class="butAction">'.$langs->trans('DetailedCashCount').'</summary>';
 	$html .= '<form method="POST" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'" class="padding">';
 	$html .= '<input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="business"><input type="hidden" name="business_action" value="close">';
 	$html .= '<input type="hidden" name="id" value="'.((int) GETPOST('id', 'int')).'"><input type="hidden" name="object" value="'.dol_escape_htmltag(GETPOST('object', 'alpha')).'">';
-	$html .= '<table class="noborder"><tr class="liste_titre"><th>Coupure</th><th>Quantité</th></tr>';
+	$html .= '<table class="noborder"><tr class="liste_titre"><th>'.$langs->trans('Denomination').'</th><th>'.$langs->trans('Qty').'</th></tr>';
 	foreach (agence_cash_denominations() as $denomination) {
-		$html .= '<tr><td class="right">'.price($denomination).'</td><td><input class="flat width75" type="number" min="0" step="1" name="denom_'.dol_escape_htmltag((string) $denomination).'" aria-label="Quantité pour la coupure '.dol_escape_htmltag((string) $denomination).'" value="0"></td></tr>';
+		$html .= '<tr><td class="right">'.price($denomination).'</td><td><input class="flat width75" type="number" min="0" step="1" name="denom_'.dol_escape_htmltag((string) $denomination).'" aria-label="'.dol_escape_htmltag($langs->trans('QuantityForDenomination', price($denomination))).'" value="0"></td></tr>';
 	}
-	$html .= '</table><label>Commentaire <input class="flat minwidth300" name="comment"></label> <button class="button button-save" type="submit">Clôturer avec ce comptage</button></form></details>';
+	$html .= '</table><label>'.$langs->trans('Comment').' <input class="flat minwidth300" name="comment"></label> <button class="button button-save" type="submit">'.$langs->trans('CloseWithCashCount').'</button></form></details>';
 	return $html;
 }

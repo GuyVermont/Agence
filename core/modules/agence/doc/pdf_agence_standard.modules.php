@@ -9,6 +9,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_crud.lib.php';
 
 /**
  * Generic PDF model for SOFITOUL objects.
@@ -28,7 +29,7 @@ class pdf_agence_standard
 	/**
 	 * @var string Description
 	 */
-	public $description = 'Generic PDF for SOFITOUL agency objects';
+	public $description = 'AgencyPDFModelDescription';
 
 	/**
 	 * @var string Type
@@ -82,7 +83,7 @@ class pdf_agence_standard
 		$subdir = dirname($file);
 		if (!dol_is_dir($subdir)) {
 			if (dol_mkdir($subdir) < 0) {
-				$this->result['error'] = 'Impossible de créer le répertoire documentaire de l’entité.';
+				$this->result['error'] = $outputlangs->transnoentities('UnableToCreateEntityDocumentDirectory');
 				return -1;
 			}
 		}
@@ -122,7 +123,16 @@ class pdf_agence_standard
 		$y += 10;
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', 9);
 		$pdf->SetXY(15, $y);
-		$pdf->MultiCell(180, 6, $outputlangs->transnoentities('AgencyDocument').' - '.$object->table_element, 0, 'L');
+		$objectKey = '';
+		$objectLabel = $outputlangs->transnoentities('AgencyDocument');
+		foreach (agence_get_object_registry() as $registryKey => $registryConfig) {
+			if ($registryConfig['class'] === get_class($object)) {
+				$objectKey = $registryKey;
+				$objectLabel = $outputlangs->transnoentities($registryConfig['singular']);
+				break;
+			}
+		}
+		$pdf->MultiCell(180, 6, $outputlangs->transnoentities('AgencyDocument').' - '.$objectLabel, 0, 'L');
 		$y += 8;
 
 		if (is_object($mysoc)) {
@@ -150,16 +160,8 @@ class pdf_agence_standard
 			$value = isset($object->$fieldKey) ? $object->$fieldKey : '';
 			if ($value === null || $value === '') {
 				$value = '-';
-			}
-			if (!empty($field['type']) && preg_match('/^(double|real|price)/i', $field['type'])) {
-				$value = price($value);
-			}
-			if (!empty($field['type']) && preg_match('/datetime/i', $field['type'])) {
-				$ts = is_numeric($value) ? (int) $value : $this->db->jdate($value);
-				$value = $ts ? dol_print_date($ts, 'dayhour', false, $outputlangs) : $value;
-			} elseif (!empty($field['type']) && preg_match('/^date/i', $field['type'])) {
-				$ts = is_numeric($value) ? (int) $value : $this->db->jdate($value);
-				$value = $ts ? dol_print_date($ts, 'day', false, $outputlangs) : $value;
+			} else {
+				$value = html_entity_decode(strip_tags(agence_format_field_value($fieldKey, $value, $field, $objectKey)), ENT_QUOTES, 'UTF-8');
 			}
 			$label = $outputlangs->convToOutputCharset((string) $label);
 			$value = $outputlangs->convToOutputCharset(dol_trunc((string) $value, 500));
@@ -183,7 +185,7 @@ class pdf_agence_standard
 		$pdf->SetY(-14);
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', 7);
 		$pdf->SetTextColor(40, 50, 68);
-		$pdf->Cell(0, 8, 'iPowerWorld · csa@ipowerworld.net · Généré par Dolibarr - '.dol_print_date(dol_now(), 'dayhour', false, $outputlangs), 0, 0, 'C');
+		$pdf->Cell(0, 8, 'iPowerWorld · csa@ipowerworld.net · '.$outputlangs->transnoentities('GeneratedByDolibarr').' - '.dol_print_date(dol_now(), 'dayhour', false, $outputlangs), 0, 0, 'C');
 
 		$pdf->Output($file, 'F');
 		if (!empty($pdf->error)) {

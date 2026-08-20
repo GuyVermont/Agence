@@ -2,6 +2,19 @@
 
 Toutes les évolutions significatives du module Agence sont consignées dans ce fichier.
 
+## [2.3.1] - 2026-08-20
+
+Version de normalisation des libellés et traductions éditée par iPowerWorld.
+
+### Expérience utilisateur et internationalisation
+
+- couverture complète en français et en anglais des champs, paramètres, menus, permissions et valeurs métier visibles ;
+- remplacement des noms techniques, identifiants bruts et statuts numériques par des références, noms et états métier lisibles ;
+- listes de sélection traduites pour les statuts, types de caisse, contrôles, risques, périmètres et workflows ;
+- tableaux de bord, exports CSV, PDF, notifications Dolibarr et écrans d’intégration rendus indépendants de la langue ;
+- sélection lisible des agences, comptes bancaires, mouvements financiers et événements webhook ;
+- contrôle automatique de 877 clés visibles, des doublons et des traductions vides dans la porte qualité.
+
 ## [2.3.0] - 2026-08-20
 
 Version d’intégration à l’écosystème PowerERP éditée par iPowerWorld.
@@ -97,4 +110,5 @@ Version de référence initiale du dépôt public.
 [2.0.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.0.1
 [2.1.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.1.0
 [2.2.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.2.0
+[2.3.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.1
 [2.3.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.0

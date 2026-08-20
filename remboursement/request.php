@@ -21,7 +21,7 @@ if (GETPOST('action', 'alpha') === 'request') {
 		'reason' => GETPOST('reason', 'restricthtml'),
 	));
 	if ($id > 0) {
-		setEventMessages('Demande de remboursement enregistrée.', null, 'mesgs');
+		setEventMessages($langs->trans('RefundRequestRecorded'), null, 'mesgs');
 		header('Location: '.dol_buildpath('/agence/remboursement/card.php', 1).'?object=remboursement&id='.$id);
 		exit;
 	}
@@ -40,18 +40,18 @@ if ($scopeIds !== null) {
 }
 $sql .= ' ORDER BY f.rowid DESC'.$db->plimit(500, 0);
 $resql = $db->query($sql);
-llxHeader('', 'Demander un remboursement');
-print load_fiche_titre('Demander un remboursement', '', 'hand-holding-dollar');
+llxHeader('', $langs->trans('RequestRefund'));
+print load_fiche_titre($langs->trans('RequestRefund'), '', 'hand-holding-dollar');
 print '<form method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="request"><table class="border centpercent tableforfield">';
-print '<tr><td class="titlefieldcreate fieldrequired">Facture encaissée</td><td><select class="flat minwidth500" name="fk_facture_origin" required><option value="">-- Choisir --</option>';
+print '<tr><td class="titlefieldcreate fieldrequired">'.$langs->trans('CollectedInvoice').'</td><td><select class="flat minwidth500" name="fk_facture_origin" required><option value="">'.$langs->trans('Select').'</option>';
 while ($resql && ($row = $db->fetch_object($resql))) {
 	if ((float) $row->paid > 0) {
-		print '<option value="'.((int) $row->rowid).'">'.dol_escape_htmltag($row->ref.' - '.$row->nom.' - encaissé '.price($row->paid)).'</option>';
+		print '<option value="'.((int) $row->rowid).'">'.dol_escape_htmltag($row->ref.' - '.$row->nom.' - '.$langs->trans('CollectedAmount').' '.price($row->paid)).'</option>';
 	}
 }
-print '</select></td></tr><tr><td class="fieldrequired">Montant demandé</td><td><input class="flat" type="number" min="0.01" step="0.01" name="requested_amount" required></td></tr>';
-print '<tr><td>Mode</td><td><select name="payment_mode"><option value="LIQ">Espèces</option><option value="CB">Carte</option><option value="CHQ">Chèque</option><option value="VIR">Virement</option><option value="OM">Orange Money</option><option value="MM">Mobile Money</option><option value="AVOIR">Avoir uniquement</option></select></td></tr>';
-print '<tr><td class="fieldrequired">Motif</td><td><textarea class="flat centpercent" name="reason" required></textarea></td></tr></table>';
-print '<div class="center"><button class="button button-save" type="submit">Créer la demande</button></div></form>';
+print '</select></td></tr><tr><td class="fieldrequired">'.$langs->trans('RequestedAmount').'</td><td><input class="flat" type="number" min="0.01" step="0.01" name="requested_amount" required></td></tr>';
+print '<tr><td>'.$langs->trans('PaymentMode').'</td><td><select name="payment_mode"><option value="LIQ">'.$langs->trans('CashPayment').'</option><option value="CB">'.$langs->trans('BankCardPayment').'</option><option value="CHQ">'.$langs->trans('ChequePayment').'</option><option value="VIR">'.$langs->trans('BankTransferPayment').'</option><option value="OM">Orange Money</option><option value="MM">Mobile Money</option><option value="AVOIR">'.$langs->trans('CreditNoteOnly').'</option></select></td></tr>';
+print '<tr><td class="fieldrequired">'.$langs->trans('Reason').'</td><td><textarea class="flat centpercent" name="reason" required></textarea></td></tr></table>';
+print '<div class="center"><button class="button button-save" type="submit">'.$langs->trans('CreateRequest').'</button></div></form>';
 llxFooter();
 $db->close();

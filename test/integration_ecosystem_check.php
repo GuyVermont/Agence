@@ -103,7 +103,7 @@ agence_integration_assert($eventCount && (int) $eventCount->nb === 5, 'five Agen
 agence_integration_assert(SofIntegrationService::dolibarrNotificationEvents() === array('AGENCE_CASH_CLOSURE_COMPLETED','AGENCE_VALIDATION_DECIDED','AGENCE_REFUND_COMPLETED','AGENCE_BANK_DEPOSIT_COMPLETED','AGENCE_ALERT_CREATED'), 'Dolibarr notification hook exposes the exact public events');
 
 $health = $service->health($user);
-agence_integration_assert(is_array($health) && $health['status'] === 'ok' && $health['version'] === '2.3.0' && $health['entity'] === (int) $conf->entity, 'REST health contract reports module, version, entity and queues', $service->error);
+agence_integration_assert(is_array($health) && $health['status'] === 'ok' && $health['version'] === '2.3.1' && $health['entity'] === (int) $conf->entity, 'REST health contract reports module, version, entity and queues', $service->error);
 
 $apiReachable = false; $apiDetail = 'cURL extension unavailable'; $apiLabel = 'REST endpoint is discovered and rejects unauthenticated calls';
 if (function_exists('curl_init')) {
@@ -115,7 +115,7 @@ if (function_exists('curl_init')) {
 	$apiJson = is_string($body) ? json_decode($body, true) : null;
 	if (!empty($user->api_key)) {
 		$apiLabel = 'authenticated Dolibarr REST endpoint /agence/health is callable';
-		$apiReachable = $httpCode === 200 && is_array($apiJson) && ($apiJson['version'] ?? '') === '2.3.0' && (int) ($apiJson['entity'] ?? 0) === (int) $conf->entity;
+		$apiReachable = $httpCode === 200 && is_array($apiJson) && ($apiJson['version'] ?? '') === '2.3.1' && (int) ($apiJson['entity'] ?? 0) === (int) $conf->entity;
 	} else {
 		$apiReachable = $httpCode === 401;
 	}

@@ -332,7 +332,7 @@ class SofIntegrationService
 			'webhooks' => $this->exportResource('sof_webhook_endpoint', array('ref','label','endpoint_url','event_filter','fk_agence','max_attempts','status')),
 			'connectors' => $this->exportResource('sof_integration_connector', array('ref','label','connector_type','endpoint_url','auth_type','fk_agence','fk_bank_account','polling_minutes','status')),
 		);
-		$package = array('format' => 'powererp-agence-configuration', 'format_version' => 1, 'module_version' => '2.3.0', 'editor' => 'iPowerWorld', 'source_environment' => $environment, 'generated_at' => gmdate('c'), 'payload' => $payload);
+		$package = array('format' => 'powererp-agence-configuration', 'format_version' => 1, 'module_version' => '2.3.1', 'editor' => 'iPowerWorld', 'source_environment' => $environment, 'generated_at' => gmdate('c'), 'payload' => $payload);
 		$package['checksum'] = hash('sha256', json_encode($package, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 		$this->logConfigTransfer($user, 'export', $environment, '', $package['checksum'], true, array('resources' => array_map('count', array_filter($payload, 'is_array'))), 1);
 		return $package;
@@ -399,7 +399,7 @@ class SofIntegrationService
 			$resql = $this->db->query('SELECT COUNT(*) nb FROM '.$this->db->prefix().$from.' AND entity='.$this->entity());
 			$row = $resql ? $this->db->fetch_object($resql) : null; $counts[$key] = $row ? (int) $row->nb : -1;
 		}
-		return array('status' => in_array(-1, $counts, true) ? 'degraded' : 'ok', 'module' => 'agence', 'version' => '2.3.0', 'entity' => $this->entity(), 'time' => gmdate('c'), 'queues' => $counts);
+		return array('status' => in_array(-1, $counts, true) ? 'degraded' : 'ok', 'module' => 'agence', 'version' => '2.3.1', 'entity' => $this->entity(), 'time' => gmdate('c'), 'queues' => $counts);
 	}
 
 	private function sendDolibarrNotification($eventCode, $objectType, $objectId, $fkAgence, array $data, User $actor = null)

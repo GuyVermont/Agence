@@ -4,6 +4,7 @@
 require '../../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceoperations.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence.lib.php';
 
 $langs->loadLangs(array('agence@agence'));
 $canValidate = !empty($user->admin)
@@ -34,7 +35,9 @@ if (GETPOST('action', 'alpha') === 'decide') {
 	}
 }
 
-$sql = 'SELECT v.* FROM '.$db->prefix().'sof_caisse_validation v WHERE v.entity = '.((int) $conf->entity).' AND v.status = 0';
+$sql = 'SELECT v.*, w.label AS workflow_label FROM '.$db->prefix().'sof_caisse_validation v';
+$sql .= ' LEFT JOIN '.$db->prefix().'sof_caisse_workflow w ON w.entity=v.entity AND w.code=v.workflow_code';
+$sql .= ' WHERE v.entity = '.((int) $conf->entity).' AND v.status = 0';
 $sql .= ' AND NOT EXISTS (SELECT 1 FROM '.$db->prefix().'sof_caisse_validation p WHERE p.entity=v.entity';
 $sql .= ' AND p.object_type=v.object_type AND p.object_id=v.object_id AND p.status=0 AND p.validation_level < v.validation_level)';
 $sql .= SofAgenceService::validationScopeSql($db, 'v', SofAgenceService::allowedAgencyIds($db, $user));
@@ -68,8 +71,10 @@ while ($resql && ($row = $db->fetch_object($resql))) {
 	$count++;
 	$url = agence_validation_object_url($row->object_type, (int) $row->object_id);
 	print '<tr class="oddeven"><td>'.dol_print_date($db->jdate($row->date_request), 'dayhour').'</td>';
-	print '<td>'.($url ? '<a href="'.$url.'">' : '').dol_escape_htmltag($row->object_type).' #'.((int) $row->object_id).($url ? '</a>' : '').'</td>';
-	print '<td>'.dol_escape_htmltag($row->workflow_code).'</td><td>'.((int) $row->validation_level).'</td><td>'.dol_escape_htmltag($row->role_required ?: '-').'</td>';
+	$objectLabel = agence_translate_business_code('object_type', $row->object_type);
+	$objectReference = $langs->trans('ReferenceNumber', (int) $row->object_id);
+	print '<td>'.($url ? '<a href="'.$url.'">' : '').dol_escape_htmltag($objectLabel.' — '.$objectReference).($url ? '</a>' : '').'</td>';
+	print '<td>'.dol_escape_htmltag($row->workflow_label ?: agence_translate_business_code('workflow', $row->workflow_code)).'</td><td>'.((int) $row->validation_level).'</td><td>'.dol_escape_htmltag($row->role_required ? agence_translate_business_code('role', $row->role_required) : '-').'</td>';
 	print '<td><form method="POST" class="inline-block"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="decide"><input type="hidden" name="step_id" value="'.$row->rowid.'">';
 	print '<input class="flat minwidth200" name="reason" placeholder="'.$langs->trans('Comment').'"> ';
 	print '<button class="button" name="decision" value="approve" type="submit">'.$langs->trans('Approve').'</button> <button class="button button-cancel" name="decision" value="reject" type="submit">'.$langs->trans('Reject').'</button></form></td></tr>';

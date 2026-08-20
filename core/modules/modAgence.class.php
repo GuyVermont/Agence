@@ -27,7 +27,8 @@ class modAgence extends DolibarrModules
 	 */
 	public function __construct($db)
 	{
-		global $conf;
+		global $conf, $langs;
+		$langs->loadLangs(array('agence@agence'));
 
 		$this->db = $db;
 		$this->numero = 510000;
@@ -39,7 +40,7 @@ class modAgence extends DolibarrModules
 		$this->descriptionlong = 'ModuleAgenceDescLong';
 		$this->editor_name = 'iPowerWorld';
 		$this->editor_url = 'https://ipowerworld.net';
-		$this->version = '2.3.0';
+		$this->version = '2.3.1';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'building';
 
@@ -132,7 +133,7 @@ class modAgence extends DolibarrModules
 				'objectname' => 'SofAlerte',
 				'method' => 'detectAlerts',
 				'parameters' => '',
-				'comment' => 'Detect non-closed sessions, overdue deferred payments, unreconciled deposits and critical gaps',
+				'comment' => $langs->trans('DetectAgencyOperationalAlertsDescription'),
 				'frequency' => 1,
 				'unitfrequency' => 3600,
 				'status' => 1,
@@ -146,7 +147,7 @@ class modAgence extends DolibarrModules
 				'objectname' => 'SofAgenceIndustrialService',
 				'method' => 'runScheduledOperations',
 				'parameters' => '',
-				'comment' => 'Escalate alerts and validations, send queued notifications, synchronize collections and retry controlled failures',
+				'comment' => $langs->trans('RunAgencyIndustrialOperationsDescription'),
 				'frequency' => 15,
 				'unitfrequency' => 60,
 				'status' => 1,
@@ -245,9 +246,9 @@ class modAgence extends DolibarrModules
 		$this->addLeftMenu($r, 'RequestRefund', '/agence/remboursement/request.php', 'agence_refund_request', '$user->hasRight("agence", "remboursement", "request")', 'fa-hand-holding-dollar');
 		$this->addLeftMenu($r, 'ControlsAndAudit', '/agence/controle/list.php', 'agence_controle', '$user->hasRight("agence", "controle", "create") || $user->hasRight("agence", "audit", "read")', 'fa-shield-halved');
 		$this->addLeftMenu($r, 'BankDeposits', '/agence/banque/list.php', 'agence_banque', '$user->hasRight("agence", "depotbanque", "create") || $user->hasRight("agence", "depotbanque", "reconcile")', 'fa-building-columns');
-		$this->addLeftMenu($r, 'Imports et rapprochements', '/agence/admin/industrial.php?section=imports', 'agence_imports', '$user->hasRight("agence", "bankimport", "import") || $user->hasRight("agence", "bankimport", "reconcile") || $user->hasRight("agence", "bulkimport", "run")', 'fa-file-import');
-		$this->addLeftMenu($r, 'Recouvrement clients', '/agence/admin/industrial.php?section=collections', 'agence_collections', '$user->hasRight("agence", "recouvrement", "manage")', 'fa-comments-dollar');
-		$this->addLeftMenu($r, 'Annulations financières', '/agence/admin/industrial.php?section=reversals', 'agence_reversals', '$user->hasRight("agence", "reversal", "request") || $user->hasRight("agence", "reversal", "approve")', 'fa-arrow-rotate-left');
+		$this->addLeftMenu($r, 'ImportsAndReconciliations', '/agence/admin/industrial.php?section=imports', 'agence_imports', '$user->hasRight("agence", "bankimport", "import") || $user->hasRight("agence", "bankimport", "reconcile") || $user->hasRight("agence", "bulkimport", "run")', 'fa-file-import');
+		$this->addLeftMenu($r, 'CustomerCollections', '/agence/admin/industrial.php?section=collections', 'agence_collections', '$user->hasRight("agence", "recouvrement", "manage")', 'fa-comments-dollar');
+		$this->addLeftMenu($r, 'FinancialReversals', '/agence/admin/industrial.php?section=reversals', 'agence_reversals', '$user->hasRight("agence", "reversal", "request") || $user->hasRight("agence", "reversal", "approve")', 'fa-arrow-rotate-left');
 		$this->addLeftMenu($r, 'WorkflowValidation', '/agence/workflow/list.php', 'agence_workflow', '$user->hasRight("agence", "workflow", "write")', 'fa-code-branch');
 		$this->addLeftMenu($r, 'MyPendingValidations', '/agence/workflow/my.php', 'agence_my_validations', '$user->hasRight("agence", "session", "validate") || $user->hasRight("agence", "remboursement", "validate") || $user->hasRight("agence", "boncommande", "validate") || $user->hasRight("agence", "bst", "validate") || $user->hasRight("agence", "instruction", "validate")', 'fa-check-double');
 		$this->addLeftMenu($r, 'ReportsStatistics', '/agence/report/index.php', 'agence_report', '$user->hasRight("agence", "report", "read")', 'fa-chart-pie');
@@ -255,11 +256,11 @@ class modAgence extends DolibarrModules
 		$this->addLeftMenu($r, 'AuditTrail', '/agence/audit/list.php', 'agence_audit', '$user->hasRight("agence", "audit", "read")', 'fa-fingerprint');
 		$this->addLeftMenu($r, 'TerminalMappings', '/agence/admin/terminal_mapping.php', 'agence_terminal_mapping', '$user->hasRight("agence", "caisse", "write") || $user->hasRight("agence", "parametre", "write")', 'fa-cash-register');
 		$this->addLeftMenu($r, 'AgencyAccountingPosting', '/agence/admin/accounting.php', 'agence_accounting', '$user->hasRight("agence", "compta", "post")', 'fa-scale-balanced');
-		$this->addLeftMenu($r, 'Intégrations PowerERP', '/agence/admin/integrations.php', 'agence_integrations', '$user->admin || $user->hasRight("agence", "webhook", "manage") || $user->hasRight("agence", "connector", "manage") || $user->hasRight("agence", "bi", "export") || $user->hasRight("agence", "configtransfer", "export") || $user->hasRight("agence", "configtransfer", "import")', 'fa-plug');
-		$this->addLeftMenu($r, 'Notifications et escalades', '/agence/admin/industrial.php?section=notifications', 'agence_notifications', '$user->hasRight("agence", "notification", "manage")', 'fa-bell');
-		$this->addLeftMenu($r, 'Erreurs et reprises', '/agence/admin/industrial.php?section=errors', 'agence_errors', '$user->hasRight("agence", "technicalerror", "manage")', 'fa-triangle-exclamation');
-		$this->addLeftMenu($r, 'Archivage et conservation', '/agence/admin/industrial.php?section=retention', 'agence_retention', '$user->hasRight("agence", "archive", "manage")', 'fa-box-archive');
-		$this->addLeftMenu($r, 'Diagnostic Agence', '/agence/admin/diagnostic.php', 'agence_diagnostic', '$user->hasRight("agence", "diagnostic", "read") || $user->admin', 'fa-stethoscope');
+		$this->addLeftMenu($r, 'PowerERPIntegrations', '/agence/admin/integrations.php', 'agence_integrations', '$user->admin || $user->hasRight("agence", "webhook", "manage") || $user->hasRight("agence", "connector", "manage") || $user->hasRight("agence", "bi", "export") || $user->hasRight("agence", "configtransfer", "export") || $user->hasRight("agence", "configtransfer", "import")', 'fa-plug');
+		$this->addLeftMenu($r, 'NotificationsAndEscalations', '/agence/admin/industrial.php?section=notifications', 'agence_notifications', '$user->hasRight("agence", "notification", "manage")', 'fa-bell');
+		$this->addLeftMenu($r, 'ErrorsAndRetries', '/agence/admin/industrial.php?section=errors', 'agence_errors', '$user->hasRight("agence", "technicalerror", "manage")', 'fa-triangle-exclamation');
+		$this->addLeftMenu($r, 'ArchivingAndRetention', '/agence/admin/industrial.php?section=retention', 'agence_retention', '$user->hasRight("agence", "archive", "manage")', 'fa-box-archive');
+		$this->addLeftMenu($r, 'AgencyAdministratorDiagnostic', '/agence/admin/diagnostic.php', 'agence_diagnostic', '$user->hasRight("agence", "diagnostic", "read") || $user->admin', 'fa-stethoscope');
 		$this->addLeftMenu($r, 'Setup', '/agence/admin/setup.php', 'agence_setup', '$user->hasRight("agence", "parametre", "write")', 'fa-gear');
 	}
 
@@ -358,14 +359,19 @@ class modAgence extends DolibarrModules
 	/** Register Agence business events in Dolibarr's configurable Notification module. */
 	private function seedIntegrationEvents()
 	{
+		global $langs;
+		$langs->loadLangs(array('agence@agence'));
 		$events = array(
-			array('AGENCE_CASH_CLOSURE_COMPLETED', 'Clôture de caisse Agence terminée', 'Une clôture de caisse Agence a été finalisée.'),
-			array('AGENCE_VALIDATION_DECIDED', 'Validation Agence décidée', 'Une étape de validation Agence a été approuvée ou rejetée.'),
-			array('AGENCE_REFUND_COMPLETED', 'Remboursement Agence exécuté', 'Un remboursement Agence a été exécuté.'),
-			array('AGENCE_BANK_DEPOSIT_COMPLETED', 'Dépôt bancaire Agence traité', 'Un dépôt bancaire Agence a été exécuté ou rapproché.'),
-			array('AGENCE_ALERT_CREATED', 'Alerte Agence créée', 'Une alerte opérationnelle Agence a été créée.'),
+			array('AGENCE_CASH_CLOSURE_COMPLETED', $langs->trans('CashClosureCompletedEvent'), $langs->trans('CashClosureCompletedEventDescription')),
+			array('AGENCE_VALIDATION_DECIDED', $langs->trans('ValidationDecidedEvent'), $langs->trans('ValidationDecidedEventDescription')),
+			array('AGENCE_REFUND_COMPLETED', $langs->trans('RefundCompletedEvent'), $langs->trans('RefundCompletedEventDescription')),
+			array('AGENCE_BANK_DEPOSIT_COMPLETED', $langs->trans('BankDepositCompletedEvent'), $langs->trans('BankDepositCompletedEventDescription')),
+			array('AGENCE_ALERT_CREATED', $langs->trans('AlertCreatedEvent'), $langs->trans('AlertCreatedEventDescription')),
 		);
 		foreach ($events as $position => $event) {
+			$update = 'UPDATE '.$this->db->prefix().'c_action_trigger SET label=\''.$this->db->escape($event[1]).'\', description=\''.$this->db->escape($event[2]).'\', elementtype=\'agence\', rang='.(700 + $position);
+			$update .= " WHERE code='".$this->db->escape($event[0])."'";
+			if (!$this->db->query($update)) return -1;
 			$sql = 'INSERT INTO '.$this->db->prefix().'c_action_trigger (code,label,description,elementtype,rang) SELECT ';
 			$sql .= "'".$this->db->escape($event[0])."','".$this->db->escape($event[1])."','".$this->db->escape($event[2])."','agence',".(700 + $position);
 			$sql .= ' WHERE NOT EXISTS (SELECT 1 FROM '.$this->db->prefix()."c_action_trigger WHERE code='".$this->db->escape($event[0])."')";

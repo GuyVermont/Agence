@@ -2,6 +2,7 @@
 /* Copyright (C) 2026 SOFITOUL */
 
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_crud.lib.php';
 
 /**
  * \file       htdocs/custom/agence/lib/agence_report.lib.php
@@ -217,42 +218,42 @@ function agence_report_dataset($dataset, $start, $end)
 /** Return only dashboards that match the current user's operational role and rights. */
 function agence_report_available_dashboards()
 {
-	global $user;
+	global $user, $langs;
 	$dashboards = array();
 	if (!empty($user->admin) || $user->hasRight('agence', 'session', 'open') || $user->hasRight('agence', 'mouvement', 'cashin')) {
-		$dashboards['cashier'] = array('label' => 'Tableau caissier', 'dataset' => 'cashier_sessions', 'columns' => array(
-			'ref' => 'Référence', 'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'date_opening' => 'Ouverture',
-			'date_closing' => 'Clôture', 'theoretical_amount' => 'Théorique', 'physical_amount' => 'Physique', 'gap_amount' => 'Écart', 'status' => 'Statut',
+		$dashboards['cashier'] = array('label' => $langs->trans('DashboardCashier'), 'dataset' => 'cashier_sessions', 'columns' => array(
+			'ref' => $langs->trans('Ref'), 'fk_agence' => $langs->trans('Agency'), 'fk_caisse' => $langs->trans('CashDesk'), 'date_opening' => $langs->trans('OpeningDate'),
+			'date_closing' => $langs->trans('ClosingDate'), 'theoretical_amount' => $langs->trans('TheoreticalAmount'), 'physical_amount' => $langs->trans('PhysicalAmount'), 'gap_amount' => $langs->trans('GapAmount'), 'status' => $langs->trans('Status'),
 		));
 	}
 	if (!empty($user->admin) || $user->hasRight('agence', 'report', 'read') || $user->hasRight('agence', 'session', 'validate')) {
-		$dashboards['agency'] = array('label' => 'Pilotage agence', 'dataset' => 'daily_cash', 'columns' => array(
-			'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'payment_mode' => 'Mode', 'direction' => 'Sens', 'nb_operations' => 'Opérations', 'total_amount' => 'Montant',
+		$dashboards['agency'] = array('label' => $langs->trans('DashboardAgencyDaily'), 'dataset' => 'daily_cash', 'columns' => array(
+			'fk_agence' => $langs->trans('Agency'), 'fk_caisse' => $langs->trans('CashDesk'), 'payment_mode' => $langs->trans('PaymentMode'), 'direction' => $langs->trans('Direction'), 'nb_operations' => $langs->trans('NumberOfOperations'), 'total_amount' => $langs->trans('Amount'),
 		));
 	}
 	if (!empty($user->admin) || $user->hasRight('agence', 'paiementdiffere', 'create') || $user->hasRight('agence', 'paiementdiffere', 'validate')) {
-		$dashboards['deferred'] = array('label' => 'Recouvrement différé', 'dataset' => 'deferred_cases', 'columns' => array(
-			'ref' => 'Référence', 'fk_soc' => 'Tiers', 'fk_agence' => 'Agence', 'expected_amount' => 'Attendu', 'paid_amount' => 'Payé',
-			'remaining_amount' => 'Restant', 'expected_payment_date' => 'Échéance', 'status' => 'Statut',
+		$dashboards['deferred'] = array('label' => $langs->trans('DashboardDeferred'), 'dataset' => 'deferred_cases', 'columns' => array(
+			'ref' => $langs->trans('Ref'), 'fk_soc' => $langs->trans('ThirdParty'), 'fk_agence' => $langs->trans('Agency'), 'expected_amount' => $langs->trans('ExpectedAmount'), 'paid_amount' => $langs->trans('PaidAmount'),
+			'remaining_amount' => $langs->trans('RemainingAmount'), 'expected_payment_date' => $langs->trans('PaymentDueDate'), 'status' => $langs->trans('Status'),
 		));
 	}
 	if (!empty($user->admin) || $user->hasRight('agence', 'dashboard', 'audit') || $user->hasRight('agence', 'controle', 'create') || $user->hasRight('agence', 'audit', 'read')) {
-		$dashboards['audit'] = array('label' => 'Contrôle et audit', 'dataset' => 'audit_controls', 'columns' => array(
-			'ref' => 'Référence', 'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'fk_session' => 'Session', 'fk_user_controller' => 'Contrôleur',
-			'date_start' => 'Début', 'date_end' => 'Fin', 'gap_amount' => 'Écart', 'freeze_enabled' => 'Gel actif', 'status' => 'Statut',
+		$dashboards['audit'] = array('label' => $langs->trans('DashboardControlAudit'), 'dataset' => 'audit_controls', 'columns' => array(
+			'ref' => $langs->trans('Ref'), 'fk_agence' => $langs->trans('Agency'), 'fk_caisse' => $langs->trans('CashDesk'), 'fk_session' => $langs->trans('CashSession'), 'fk_user_controller' => $langs->trans('Controller'),
+			'date_start' => $langs->trans('DateStart'), 'date_end' => $langs->trans('DateEnd'), 'gap_amount' => $langs->trans('GapAmount'), 'freeze_enabled' => $langs->trans('FreezeEnabled'), 'status' => $langs->trans('Status'),
 		));
 	}
 	if (!empty($user->admin) || $user->hasRight('agence', 'compta', 'post')) {
-		$dashboards['accounting'] = array('label' => 'File comptable', 'dataset' => 'accounting_queue', 'columns' => array(
-			'ref' => 'Référence', 'fk_agence' => 'Agence', 'fk_caisse' => 'Caisse', 'date_validation' => 'Validation',
-			'accounting_status' => 'État comptable', 'accounting_attempts' => 'Tentatives', 'accounting_error' => 'Dernier rejet', 'status' => 'Statut',
+		$dashboards['accounting'] = array('label' => $langs->trans('DashboardAccounting'), 'dataset' => 'accounting_queue', 'columns' => array(
+			'ref' => $langs->trans('Ref'), 'fk_agence' => $langs->trans('Agency'), 'fk_caisse' => $langs->trans('CashDesk'), 'date_validation' => $langs->trans('ValidationDate'),
+			'accounting_status' => $langs->trans('AccountingStatus'), 'accounting_attempts' => $langs->trans('AccountingAttempts'), 'accounting_error' => $langs->trans('AccountingError'), 'status' => $langs->trans('Status'),
 		));
 	}
 	if (!empty($user->admin) || $user->hasRight('agence', 'dashboard', 'direction') || $user->hasRight('agence', 'scope', 'write')) {
-		$dashboards['direction'] = array('label' => 'Direction multi-agences', 'dataset' => 'transversal', 'columns' => array(
-			'ref' => 'Référence', 'label' => 'Agence', 'town' => 'Ville', 'status' => 'Statut', 'nb_cashdesks' => 'Caisses',
-			'nb_open_sessions' => 'Sessions ouvertes', 'deferred_remaining' => 'Créances', 'open_gap_amount' => 'Écarts',
-			'nb_unreconciled_deposits' => 'Dépôts non rapprochés', 'nb_open_alerts' => 'Alertes',
+		$dashboards['direction'] = array('label' => $langs->trans('DashboardDirection'), 'dataset' => 'transversal', 'columns' => array(
+			'ref' => $langs->trans('Ref'), 'label' => $langs->trans('Agency'), 'town' => $langs->trans('Town'), 'status' => $langs->trans('Status'), 'nb_cashdesks' => $langs->trans('NbCashDesks'),
+			'nb_open_sessions' => $langs->trans('OpenSessions'), 'deferred_remaining' => $langs->trans('DeferredRemaining'), 'open_gap_amount' => $langs->trans('OpenCashGaps'),
+			'nb_unreconciled_deposits' => $langs->trans('UnreconciledDeposits'), 'nb_open_alerts' => $langs->trans('OpenAlerts'),
 		));
 	}
 	return $dashboards;
@@ -337,15 +338,42 @@ function agence_report_print_table($title, $rows, $columns, $dataset, $start, $e
 		print '<tr class="oddeven">';
 		foreach ($columns as $field => $label) {
 			$value = isset($row->$field) ? $row->$field : '';
-			if (preg_match('/amount|total|remaining/i', $field)) {
-				$value = price($value);
-			}
-			print '<td>'.dol_escape_htmltag((string) $value).'</td>';
+			print '<td>'.agence_report_format_value($field, $value, $dataset, true).'</td>';
 		}
 		print '</tr>';
 	}
 	print '</table>';
 	print '</div>';
+}
+
+/** Format a report value for screen or CSV without exposing stored codes. */
+function agence_report_format_value($field, $value, $dataset, $html = false)
+{
+	global $db, $langs;
+	$contexts = array('cashier_sessions'=>'session', 'deferred_cases'=>'paiementdiffere', 'audit_controls'=>'controle', 'accounting_queue'=>'session', 'transversal'=>'agence');
+	if (strpos($field, 'fk_') === 0) {
+		$formatted = agence_format_foreign_value($field, (int) $value);
+		return $html ? $formatted : trim(html_entity_decode(strip_tags($formatted), ENT_QUOTES, 'UTF-8'));
+	}
+	if ($field === 'status') {
+		$formatted = agence_translate_business_code('status', $value, isset($contexts[$dataset]) ? $contexts[$dataset] : '');
+	} elseif (in_array($field, array('accounting_status', 'reconcile_status', 'billing_status', 'validation_status', 'use_status', 'freeze_status'), true)) {
+		$formatted = agence_translate_business_code($field, $value);
+	} elseif ($field === 'payment_mode') {
+		$formatted = agence_translate_business_code('payment_mode', $value);
+	} elseif ($field === 'direction') {
+		$formatted = agence_translate_business_code('direction', $value);
+	} elseif ($field === 'freeze_enabled') {
+		$formatted = $langs->trans((int) $value ? 'Yes' : 'No');
+	} elseif (preg_match('/(^date_|_date$)/', $field) && $value !== '') {
+		$timestamp = is_numeric($value) ? (int) $value : $db->jdate($value);
+		$formatted = $timestamp ? dol_print_date($timestamp, 'dayhour') : (string) $value;
+	} elseif (preg_match('/amount|total|remaining/i', $field)) {
+		$formatted = price($value);
+	} else {
+		$formatted = (string) $value;
+	}
+	return $html ? dol_escape_htmltag($formatted) : $formatted;
 }
 
 /**
@@ -367,21 +395,24 @@ function agence_report_export_csv($dataset, $start, $end)
 	$out = fopen('php://output', 'w');
 	fwrite($out, "\xEF\xBB\xBF");
 	$headers = array();
+	$columnLabels = array();
 	foreach (agence_report_available_dashboards() as $dashboard) {
 		if ($dashboard['dataset'] === $dataset) {
 			$headers = array_keys($dashboard['columns']);
+			$columnLabels = array_values($dashboard['columns']);
 			break;
 		}
 	}
 	if (empty($headers) && !empty($rows)) {
 		$headers = array_keys(get_object_vars($rows[0]));
+		$columnLabels = array_map(function ($field) { return ucfirst(str_replace('_', ' ', $field)); }, $headers);
 	}
 	if (!empty($headers)) {
-		fputcsv($out, $headers, ';');
+		fputcsv($out, $columnLabels, ';');
 		foreach ($rows as $row) {
 			$line = array();
 			foreach ($headers as $header) {
-				$value = isset($row->$header) ? $row->$header : '';
+				$value = agence_report_format_value($header, isset($row->$header) ? $row->$header : '', $dataset, false);
 				$line[] = is_string($value) && preg_match('/^[=+\-@]/', ltrim($value)) ? "'".$value : $value;
 			}
 			fputcsv($out, $line, ';');

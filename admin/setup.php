@@ -61,7 +61,7 @@ foreach ($settings as $key => $setting) {
 	$current = getDolGlobalString($key, $setting['default']);
 	print '<tr class="oddeven">';
 	print '<td>'.(strpos($setting['label'], ' ') === false ? $langs->trans($setting['label']) : dol_escape_htmltag($setting['label'])).'</td>';
-	$displayValue = $setting['type'] === 'secret' ? ($current !== '' ? 'Configuré' : 'Non configuré') : dol_escape_htmltag($current);
+	$displayValue = $setting['type'] === 'secret' ? $langs->trans($current !== '' ? 'Configured' : 'NotConfigured') : dol_escape_htmltag($current);
 	print '<td>'.($setting['type'] === 'boolean' ? ($current ? $langs->trans('Yes') : $langs->trans('No')) : $displayValue).'</td>';
 	print '<td class="right">';
 	if ($setting['type'] === 'boolean') {
@@ -70,7 +70,7 @@ foreach ($settings as $key => $setting) {
 		$step = $setting['type'] === 'integer' ? '1' : '0.01';
 		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat width100" type="number" min="'.dol_escape_htmltag((string) $setting['min']).'" max="'.dol_escape_htmltag((string) $setting['max']).'" step="'.$step.'" name="value" value="'.dol_escape_htmltag($current).'"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
 	} elseif ($setting['type'] === 'secret') {
-		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat minwidth400" autocomplete="new-password" type="password" name="value" value="" placeholder="Laisser vide pour effacer"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
+		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat minwidth400" autocomplete="new-password" type="password" name="value" value="" placeholder="'.dol_escape_htmltag($langs->trans('LeaveEmptyToClear')).'"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
 	} else {
 		print '<form class="inline-block" method="POST"><input type="hidden" name="token" value="'.newToken().'"><input type="hidden" name="action" value="setconst"><input type="hidden" name="constname" value="'.dol_escape_htmltag($key).'"><input class="flat minwidth400" type="text" name="value" value="'.dol_escape_htmltag($current).'"><button class="button smallpaddingimp" type="submit">'.$langs->trans('Save').'</button></form>';
 	}

@@ -6,6 +6,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceoperations.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofcaissesession.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence.lib.php';
 
 $langs->loadLangs(array('agence@agence', 'bills', 'companies', 'banks'));
 if (!$user->hasRight('agence', 'mouvement', 'cashin')) {
@@ -63,8 +64,8 @@ print '<tr><td class="titlefieldcreate fieldrequired">'.$langs->trans('Customer'
 print $form->select_company(GETPOST('fk_soc', 'int'), 'fk_soc', '(s.client:in:1,2,3)', 'SelectThirdParty', 0, 0, array(), 0, 'minwidth300');
 print '</td></tr>';
 print '<tr><td>'.$langs->trans('Label').'</td><td><input class="flat minwidth400" name="label" value="'.dol_escape_htmltag(GETPOST('label', 'restricthtml')).'" placeholder="'.$langs->trans('CustomerDepositDefaultLabel').'"></td></tr>';
-foreach (array('LIQ' => 'Espèces', 'CB' => 'Carte bancaire', 'CHQ' => 'Chèque', 'VIR' => 'Virement', 'OM' => 'Orange Money', 'MM' => 'Mobile Money') as $mode => $label) {
-	print '<tr><td>'.dol_escape_htmltag($label).'</td><td><input class="flat" type="number" min="0" step="0.01" name="pay_'.$mode.'" value="'.dol_escape_htmltag(GETPOST('pay_'.$mode, 'alpha') ?: '0').'"></td></tr>';
+foreach (array('LIQ', 'CB', 'CHQ', 'VIR', 'OM', 'MM') as $mode) {
+	print '<tr><td>'.dol_escape_htmltag(agence_translate_business_code('payment_mode', $mode)).'</td><td><input class="flat" type="number" min="0" step="0.01" name="pay_'.$mode.'" value="'.dol_escape_htmltag(GETPOST('pay_'.$mode, 'alpha') ?: '0').'"></td></tr>';
 }
 print '<tr><td>'.$langs->trans('TransactionRef').'</td><td><input class="flat minwidth300" name="transaction_ref" value="'.dol_escape_htmltag(GETPOST('transaction_ref', 'alphanohtml')).'"></td></tr>';
 print '</table><div class="center"><a class="button button-cancel" href="'.dol_buildpath('/agence/session/my.php', 1).'">'.$langs->trans('Cancel').'</a> <button class="button button-save" type="submit">'.$langs->trans('RecordCustomerDeposit').'</button></div></form>';

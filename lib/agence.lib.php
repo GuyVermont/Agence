@@ -19,26 +19,26 @@ function agence_get_settings_definition()
 		'AGENCE_ENABLE_AUDIT_TRAIL' => array('label' => 'EnableAuditTrail', 'type' => 'boolean', 'default' => '1'),
 		'AGENCE_ENABLE_REPORTING' => array('label' => 'EnableReporting', 'type' => 'boolean', 'default' => '1'),
 		'AGENCE_REQUIRE_OPEN_SESSION' => array('label' => 'RequireOpenSession', 'type' => 'boolean', 'default' => '1'),
-		'AGENCE_MAX_SESSION_HOURS' => array('label' => 'Durée maximale d’une session (heures)', 'type' => 'integer', 'default' => '12', 'min' => 1, 'max' => 8760),
-		'AGENCE_GAP_MAJOR_AMOUNT' => array('label' => 'Seuil d’écart majeur', 'type' => 'decimal', 'default' => '1000', 'min' => 0, 'max' => 1000000000000000),
-		'AGENCE_GAP_CRITICAL_AMOUNT' => array('label' => 'Seuil d’écart critique', 'type' => 'decimal', 'default' => '10000', 'min' => 0, 'max' => 1000000000000000),
-		'AGENCE_TAKEPOS_MAX_DISCOUNT_PCT' => array('label' => 'Remise TakePOS maximale (%)', 'type' => 'decimal', 'default' => '10', 'min' => 0, 'max' => 100),
-		'AGENCE_DEPOSIT_ALERT_DAYS' => array('label' => 'Délai d’alerte dépôt non rapproché (jours)', 'type' => 'integer', 'default' => '3', 'min' => 1, 'max' => 3650),
+		'AGENCE_MAX_SESSION_HOURS' => array('label' => 'MaxSessionDurationHours', 'type' => 'integer', 'default' => '12', 'min' => 1, 'max' => 8760),
+		'AGENCE_GAP_MAJOR_AMOUNT' => array('label' => 'MajorCashGapThreshold', 'type' => 'decimal', 'default' => '1000', 'min' => 0, 'max' => 1000000000000000),
+		'AGENCE_GAP_CRITICAL_AMOUNT' => array('label' => 'CriticalCashGapThreshold', 'type' => 'decimal', 'default' => '10000', 'min' => 0, 'max' => 1000000000000000),
+		'AGENCE_TAKEPOS_MAX_DISCOUNT_PCT' => array('label' => 'TakePOSMaxDiscountPercent', 'type' => 'decimal', 'default' => '10', 'min' => 0, 'max' => 100),
+		'AGENCE_DEPOSIT_ALERT_DAYS' => array('label' => 'UnreconciledDepositAlertDays', 'type' => 'integer', 'default' => '3', 'min' => 1, 'max' => 3650),
 		'AGENCE_CASH_DENOMINATIONS' => array('label' => 'CashDenominations', 'type' => 'denominations', 'default' => '10000,5000,2000,1000,500,100,50,25,10,5'),
 		'AGENCE_ALLOW_SELF_APPROVAL' => array('label' => 'AllowSelfApproval', 'type' => 'boolean', 'default' => '0'),
-		'AGENCE_ENABLE_NOTIFICATIONS' => array('label' => 'Activer les notifications multicanales', 'type' => 'boolean', 'default' => '1'),
-		'AGENCE_SMS_GATEWAY_URL' => array('label' => 'Passerelle SMS HTTPS', 'type' => 'url', 'default' => ''),
-		'AGENCE_SMS_GATEWAY_TOKEN' => array('label' => 'Jeton secret de la passerelle SMS', 'type' => 'secret', 'default' => '', 'max' => 2048),
-		'AGENCE_CRITICAL_ESCALATION_MINUTES' => array('label' => 'Délai d’escalade critique (minutes)', 'type' => 'integer', 'default' => '15', 'min' => 1, 'max' => 10080),
-		'AGENCE_VALIDATION_ESCALATION_HOURS' => array('label' => 'Délai d’escalade des validations (heures)', 'type' => 'integer', 'default' => '24', 'min' => 1, 'max' => 8760),
-		'AGENCE_AUDIT_RETENTION_DAYS' => array('label' => 'Conservation des audits (jours)', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
-		'AGENCE_DOCUMENT_RETENTION_DAYS' => array('label' => 'Conservation des documents (jours)', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
-		'AGENCE_TECH_ERROR_RETENTION_DAYS' => array('label' => 'Conservation des erreurs techniques (jours)', 'type' => 'integer', 'default' => '730', 'min' => 90, 'max' => 36500),
-		'AGENCE_ENABLE_PURGE' => array('label' => 'Autoriser la purge après conservation', 'type' => 'boolean', 'default' => '0'),
-		'AGENCE_ENABLE_WEBHOOKS' => array('label' => 'Activer les webhooks signés', 'type' => 'boolean', 'default' => '1'),
-		'AGENCE_WEBHOOK_TIMEOUT_SECONDS' => array('label' => 'Délai maximal webhook (secondes)', 'type' => 'integer', 'default' => '15', 'min' => 5, 'max' => 120),
-		'AGENCE_CONNECTOR_TIMEOUT_SECONDS' => array('label' => 'Délai maximal connecteur (secondes)', 'type' => 'integer', 'default' => '30', 'min' => 5, 'max' => 300),
-		'AGENCE_DEPLOYMENT_ENVIRONMENT' => array('label' => 'Environnement de déploiement', 'type' => 'environment', 'default' => 'development'),
+		'AGENCE_ENABLE_NOTIFICATIONS' => array('label' => 'EnableMultichannelNotifications', 'type' => 'boolean', 'default' => '1'),
+		'AGENCE_SMS_GATEWAY_URL' => array('label' => 'SmsGatewayHttpsUrl', 'type' => 'url', 'default' => ''),
+		'AGENCE_SMS_GATEWAY_TOKEN' => array('label' => 'SmsGatewaySecretToken', 'type' => 'secret', 'default' => '', 'max' => 2048),
+		'AGENCE_CRITICAL_ESCALATION_MINUTES' => array('label' => 'CriticalEscalationDelayMinutes', 'type' => 'integer', 'default' => '15', 'min' => 1, 'max' => 10080),
+		'AGENCE_VALIDATION_ESCALATION_HOURS' => array('label' => 'ValidationEscalationDelayHours', 'type' => 'integer', 'default' => '24', 'min' => 1, 'max' => 8760),
+		'AGENCE_AUDIT_RETENTION_DAYS' => array('label' => 'AuditRetentionDays', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
+		'AGENCE_DOCUMENT_RETENTION_DAYS' => array('label' => 'DocumentRetentionDays', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
+		'AGENCE_TECH_ERROR_RETENTION_DAYS' => array('label' => 'TechnicalErrorRetentionDays', 'type' => 'integer', 'default' => '730', 'min' => 90, 'max' => 36500),
+		'AGENCE_ENABLE_PURGE' => array('label' => 'EnablePurgeAfterRetention', 'type' => 'boolean', 'default' => '0'),
+		'AGENCE_ENABLE_WEBHOOKS' => array('label' => 'EnableSignedWebhooks', 'type' => 'boolean', 'default' => '1'),
+		'AGENCE_WEBHOOK_TIMEOUT_SECONDS' => array('label' => 'WebhookTimeoutSeconds', 'type' => 'integer', 'default' => '15', 'min' => 5, 'max' => 120),
+		'AGENCE_CONNECTOR_TIMEOUT_SECONDS' => array('label' => 'ConnectorTimeoutSeconds', 'type' => 'integer', 'default' => '30', 'min' => 5, 'max' => 300),
+		'AGENCE_DEPLOYMENT_ENVIRONMENT' => array('label' => 'DeploymentEnvironment', 'type' => 'environment', 'default' => 'development'),
 	);
 }
 
@@ -172,6 +172,90 @@ function agence_validate_setting_update($constname, $rawValue, array $effectiveV
 	}
 
 	return true;
+}
+
+/**
+ * Translate a stored business code without exposing its technical value in UI.
+ * Unknown values are made readable by replacing separators with spaces.
+ *
+ * @param string $category Code family
+ * @param mixed  $value    Stored value
+ * @param string $context  Optional object context
+ * @return string
+ */
+function agence_translate_business_code($category, $value, $context = '')
+{
+	global $langs;
+	$code = strtolower(trim((string) $value));
+	$maps = array(
+		'direction' => array('credit'=>'CashIn', 'debit'=>'CashOut'),
+		'payment_mode' => array('liq'=>'CashPayment', 'cash'=>'CashPayment', 'cb'=>'BankCardPayment', 'card'=>'BankCardPayment', 'chq'=>'ChequePayment', 'cheque'=>'ChequePayment', 'vir'=>'BankTransferPayment', 'transfer'=>'BankTransferPayment', 'om'=>'OrangeMoney', 'orange_money'=>'OrangeMoney', 'mm'=>'MobileMoney', 'mobile_money'=>'MobileMoney', 'avoir'=>'CreditNotePayment', 'diff'=>'DeferredPayment'),
+		'operation_type' => array('opening'=>'OpeningFloatOperation', 'manual_cash_in'=>'ManualCashInOperation', 'manual_cash_out'=>'ManualCashOutOperation', 'adjustment'=>'CashAdjustmentOperation', 'invoice_payment'=>'InvoicePaymentOperation', 'native_payment'=>'NativePaymentOperation', 'refund'=>'RefundOperation', 'vault_transfer'=>'VaultTransferOperation', 'vault_transfer_received'=>'VaultTransferReceiptOperation', 'bank_deposit'=>'BankDepositOperation', 'takepos_cancel'=>'TakePOSCancellationOperation', 'collection'=>'CollectionOperation', 'financial_reversal'=>'FinancialReversalOperation'),
+		'severity' => array('info'=>'InformationSeverity', 'warning'=>'WarningSeverity', 'major'=>'MajorSeverity', 'critical'=>'CriticalSeverity'),
+		'session_type' => array('daily'=>'DailySession', 'exceptional'=>'ExceptionalSession'),
+		'connector_type' => array('bank'=>'Bank', 'orange_money'=>'OrangeMoney', 'mobile_money'=>'MobileMoney'),
+		'channel' => array('internal'=>'InternalChannel', 'email'=>'EmailChannel', 'sms'=>'SmsChannel', 'phone'=>'PhoneChannel'),
+		'decision' => array('approve'=>'Approved', 'approved'=>'Approved', 'reject'=>'Rejected', 'rejected'=>'Rejected', 'pending'=>'PendingValidation'),
+		'environment' => array('development'=>'Development', 'staging'=>'Staging', 'production'=>'Production'),
+		'object_type' => array('session'=>'CashSession', 'refund'=>'Refund', 'deferred_payment'=>'DeferredPayment', 'paiementdiffere'=>'DeferredPayment', 'credit_note'=>'CreditNote', 'customer_po'=>'CustomerPurchaseOrder', 'boncommande'=>'CustomerPurchaseOrder', 'bst'=>'BST', 'manager_instruction'=>'ManagerInstruction', 'instruction'=>'ManagerInstruction', 'deposit'=>'BankDeposit', 'depotbanque'=>'BankDeposit', 'facture'=>'Invoice', 'ecart'=>'CashGap', 'controle'=>'SurpriseControl', 'mouvement'=>'CashMovement', 'recouvrement'=>'CollectionCase', 'collection'=>'CollectionCase', 'reversal'=>'FinancialReversal', 'notification'=>'Notification', 'technical_error'=>'TechnicalError', 'audit'=>'AuditLogEntry', 'document'=>'Document'),
+		'role' => array('admin'=>'Administrator', 'administrator'=>'Administrator', 'manager'=>'Manager', 'agency_manager'=>'AgencyManager', 'cashier'=>'Cashier', 'cash_chief'=>'CashChief', 'accountant'=>'Accountant', 'accounting'=>'Accounting', 'controller'=>'Controller', 'auditor'=>'Auditor', 'sales'=>'Sales', 'sales_manager'=>'SalesManager', 'validator'=>'Validator', 'direction'=>'Management'),
+		'scope_type' => array('global'=>'GlobalScope', 'all'=>'GlobalScope', 'agency'=>'AgencyScope', 'agence'=>'AgencyScope', 'cashdesk'=>'CashDeskScope', 'caisse'=>'CashDeskScope', 'das'=>'DASScope', 'user'=>'UserScope'),
+		'cashdesk_type' => array('cash'=>'PhysicalCashDesk', 'physical'=>'PhysicalCashDesk', 'virtual'=>'VirtualCashDesk', 'takepos'=>'TakePOSCashDesk', 'mobile'=>'MobileCashDesk'),
+		'trigger_type' => array('manual'=>'ManualTrigger', 'planned'=>'PlannedTrigger', 'scheduled'=>'PlannedTrigger', 'surprise'=>'SurpriseTrigger', 'random'=>'SurpriseTrigger', 'automatic'=>'AutomaticTrigger'),
+		'count_type' => array('opening'=>'OpeningCashCount', 'closing'=>'ClosingCashCount', 'control'=>'ControlCashCount', 'surprise'=>'SurpriseCashCount'),
+		'gap_type' => array('cash'=>'CashGapType', 'card'=>'CardGapType', 'cheque'=>'ChequeGapType', 'transfer'=>'TransferGapType', 'mobile_money'=>'MobileMoneyGapType', 'total'=>'TotalGapType'),
+		'validation_mode' => array('sequential'=>'SequentialValidation', 'parallel'=>'ParallelValidation', 'single'=>'SingleValidation'),
+		'urgency' => array('low'=>'LowPriority', 'normal'=>'NormalPriority', 'high'=>'HighPriority', 'critical'=>'CriticalPriority'),
+		'risk' => array('low'=>'LowRisk', 'normal'=>'NormalRisk', 'medium'=>'MediumRisk', 'high'=>'HighRisk', 'critical'=>'CriticalRisk', 'blocked'=>'Blocked'),
+		'transfer_type' => array('cash'=>'CashTransfer', 'vault'=>'VaultTransfer', 'bank'=>'BankTransfer', 'internal'=>'InternalTransfer'),
+		'payment_component_type' => array('real'=>'ActualPaymentComponent', 'deferred'=>'DeferredPaymentComponent', 'credit_note'=>'CreditNotePaymentComponent'),
+		'pos_source' => array('takepos'=>'TakePOS', 'takepos_mapping'=>'TakePOSTerminalMapping'),
+		'source_type' => array('invoice'=>'Invoice', 'facture'=>'Invoice', 'payment'=>'Payment', 'paiement'=>'Payment', 'takepos'=>'TakePOS', 'manual'=>'ManualSource', 'import'=>'ImportedSource', 'refund'=>'Refund', 'credit_note'=>'CreditNote', 'customer_po'=>'CustomerPurchaseOrder', 'bst'=>'BST', 'manager_instruction'=>'ManagerInstruction'),
+		'signature_status' => array('pending'=>'SignaturePending', 'signed'=>'Signed', 'refused'=>'SignatureRefused', 'not_required'=>'SignatureNotRequired'),
+		'accounting_status' => array('0'=>'PendingPosting', '1'=>'PostingInProgress', '2'=>'PostingFailed', '3'=>'PostingReadyForRetry', '4'=>'Posted'),
+		'reconcile_status' => array('0'=>'PendingReconciliation', '1'=>'Reconciled', '2'=>'ReconciliationFailed', '9'=>'Canceled'),
+		'billing_status' => array('0'=>'PendingBilling', '1'=>'Invoiced', '2'=>'BillingFailed', '9'=>'Canceled'),
+		'validation_status' => array('0'=>'PendingValidation', '1'=>'Validated', '2'=>'Rejected'),
+		'use_status' => array('0'=>'Available', '1'=>'PartiallyUsed', '2'=>'Consumed', '9'=>'Canceled'),
+		'freeze_status' => array('0'=>'CashDeskAvailable', '1'=>'CashDeskFrozen'),
+		'recipient_type' => array('address'=>'AddressOrNumber', 'user'=>'DolibarrUser', 'role'=>'AgencyRole'),
+		'event_code' => array('*'=>'AllNotificationEvents', 'critical_alert'=>'CriticalAlertEvent', 'validation_overdue'=>'OverdueValidationEvent', 'collection_reminder1'=>'FirstCollectionReminderEvent', 'collection_reminder2'=>'SecondCollectionReminderEvent', 'collection_formal_notice'=>'FormalNoticeEvent', 'collection_dispute'=>'CollectionDisputeEvent', 'financial_reversal_requested'=>'FinancialReversalRequestedEvent', 'financial_reversal_approved'=>'FinancialReversalApprovedEvent', 'financial_reversal_rejected'=>'FinancialReversalRejectedEvent', 'cash_closure_completed'=>'CashClosureCompletedEvent', 'validation_decided'=>'ValidationDecidedEvent', 'refund_completed'=>'RefundCompletedEvent', 'bank_deposit_completed'=>'BankDepositCompletedEvent', 'alert_created'=>'AlertCreatedEvent'),
+		'collection_stage' => array('new'=>'NewCollectionCase', 'reminder1'=>'FirstReminder', 'reminder2'=>'SecondReminder', 'formal_notice'=>'FormalNotice', 'promise'=>'PaymentPromise', 'dispute'=>'Dispute', 'closed'=>'Closed'),
+		'notification_status' => array('0'=>'PendingDelivery', '1'=>'Sent', '2'=>'DeliveryRetryScheduled', '3'=>'DeliveryFailedPermanently'),
+		'technical_error_status' => array('0'=>'Open', '1'=>'RetryScheduled', '2'=>'Resolved', '3'=>'RetryAbandoned'),
+		'reversal_status' => array('0'=>'PendingValidation', '2'=>'Approved', '9'=>'Rejected'),
+		'archive_action' => array('archive'=>'Archived', 'purge'=>'Purged'),
+		'operation_code' => array('notification_delivery'=>'NotificationDeliveryOperation', 'collection_sync'=>'CollectionSynchronizationOperation', 'accounting_session'=>'SessionPostingOperation'),
+	);
+	$statusMaps = array(
+		'session' => array(0=>'Draft', 1=>'Opened', 2=>'Operating', 3=>'Paused', 4=>'ControlInProgress', 5=>'ClosingInProgress', 6=>'Closed', 7=>'Validated', 8=>'Accounted', 9=>'Canceled', 10=>'Blocked'),
+		'paiementdiffere' => array(0=>'Draft', 1=>'Validated', 2=>'Invoiced', 3=>'PartiallyPaid', 4=>'Paid', 5=>'Late', 6=>'Disputed', 7=>'Closed', 9=>'Canceled'),
+		'boncommande' => array(0=>'Received', 1=>'Checked', 2=>'Used', 3=>'PartiallyUsed', 4=>'Expired', 5=>'Rejected', 6=>'Invoiced', 7=>'Paid'),
+		'bst' => array(0=>'Issued', 1=>'Validated', 2=>'Consumed', 3=>'Invoiced', 4=>'Paid', 9=>'Canceled', 10=>'Disputed'),
+		'instruction' => array(0=>'PendingValidation', 1=>'Accepted', 2=>'Executed', 3=>'Invoiced', 4=>'Paid', 5=>'Rejected', 9=>'Canceled'),
+		'avoir' => array(0=>'PendingValidation', 1=>'PartiallyUsed', 2=>'Consumed', 9=>'Canceled'),
+		'controle' => array(0=>'Planned', 1=>'ControlInProgress', 2=>'Completed', 9=>'Canceled'),
+		'ecart' => array(0=>'Open', 1=>'UnderReview', 2=>'Approved', 3=>'Processed', 9=>'Canceled'),
+		'cloture' => array(0=>'Draft', 1=>'PendingValidation', 2=>'Validated', 3=>'Accounted', 9=>'Canceled'),
+		'transfert' => array(0=>'Draft', 1=>'Sent', 2=>'Received', 9=>'Canceled'),
+		'depotbanque' => array(0=>'Draft', 1=>'Deposited', 2=>'PendingReconciliation', 3=>'Reconciled', 9=>'Canceled'),
+		'validation' => array(0=>'PendingValidation', 1=>'Approved', 2=>'Rejected'),
+		'alerte' => array(0=>'Open', 1=>'Read', 2=>'Closed'),
+		'agence' => array(1=>'Active', 2=>'Suspended', 3=>'Closed', 4=>'Test', 9=>'Archived'),
+		'caisse' => array(0=>'Draft', 1=>'Active', 2=>'Suspended', 9=>'Archived'),
+		'das' => array(0=>'Disabled', 1=>'Active'),
+		'mouvement' => array(0=>'Canceled', 1=>'Validated'),
+		'remboursement' => array(0=>'Requested', 1=>'PendingValidation', 2=>'Approved', 3=>'Executed', 4=>'Accounted', 8=>'Rejected', 9=>'Canceled'),
+	);
+	if ($category === 'status') {
+		$number = (int) $value;
+		if (isset($statusMaps[$context][$number])) return $langs->trans($statusMaps[$context][$number]);
+		$defaults = array(0=>'Inactive', 1=>'Active', 2=>'Closed', 3=>'Processed', 4=>'Accounted', 8=>'Rejected', 9=>'Archived');
+		return isset($defaults[$number]) ? $langs->trans($defaults[$number]) : $langs->trans('StatusNumber', $number);
+	}
+	if (isset($maps[$category][$code])) return $langs->trans($maps[$category][$code]);
+	$readable = trim(preg_replace('/\s+/', ' ', str_replace(array('_','-'), ' ', (string) $value)));
+	return $readable === '' ? '-' : ucfirst($readable);
 }
 
 /**
