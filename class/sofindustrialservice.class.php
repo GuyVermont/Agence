@@ -3,6 +3,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofnotificationservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
 
 /** Orchestrates scheduled operations, financial reversals, retention and diagnostics. */
 class SofAgenceIndustrialService
@@ -21,11 +22,14 @@ class SofAgenceIndustrialService
 	public function runScheduledOperations()
 	{
 		$notifications = new SofNotificationService($this->db);
+		$integrations = new SofIntegrationService($this->db);
 		$results = array(
 			'escalations' => $notifications->runEscalations(),
 			'collections' => $notifications->synchronizeCollections(),
 			'notifications' => $notifications->processQueue(200),
 			'retries' => $notifications->processTechnicalRetries(25),
+			'webhooks' => $integrations->processWebhooks(200),
+			'connectors' => $integrations->syncDueConnectors(20),
 		);
 		// Scheduled retention archives evidence but never enables purge by itself.
 		$retention = $this->applyRetention(null, false, false);
@@ -202,7 +206,7 @@ class SofAgenceIndustrialService
 			return array();
 		}
 		$checks = array();
-		$tables = array('sof_notification_config','sof_notification_outbox','sof_bank_import','sof_bank_import_line','sof_recouvrement','sof_recouvrement_action','sof_bulk_import','sof_bulk_import_line','sof_technical_error','sof_financial_reversal','sof_archive_log');
+		$tables = array('sof_notification_config','sof_notification_outbox','sof_bank_import','sof_bank_import_line','sof_recouvrement','sof_recouvrement_action','sof_bulk_import','sof_bulk_import_line','sof_technical_error','sof_financial_reversal','sof_archive_log','sof_webhook_endpoint','sof_webhook_delivery','sof_integration_connector','sof_integration_sync','sof_config_transfer');
 		foreach ($tables as $table) {
 			$resql = $this->db->DDLDescTable($this->db->prefix().$table, '');
 			$checks[] = $this->check('schema', $table, $resql && $this->db->num_rows($resql) > 0 ? 'ok' : 'error', $resql && $this->db->num_rows($resql) > 0 ? 'Table installée' : 'Table absente');
@@ -242,6 +246,13 @@ class SofAgenceIndustrialService
 		$resql = $this->db->query('SELECT COUNT(*) nb FROM '.$this->db->prefix()."c_paiement WHERE entity IN (0,".$this->entity().") AND code IN ('OM','MM') AND active = 1");
 		$row = $resql ? $this->db->fetch_object($resql) : null;
 		$checks[] = $this->check('integrations', 'mobile_money', $row && (int) $row->nb >= 2 ? 'ok' : 'error', ($row ? (int) $row->nb : 0).'/2 modes opérateur actifs');
+		$resql = $this->db->query('SELECT COUNT(*) nb FROM '.$this->db->prefix().'sof_webhook_endpoint WHERE entity = '.$this->entity().' AND status = 1');
+		$row = $resql ? $this->db->fetch_object($resql) : null;
+		$checks[] = $this->check('integrations', 'webhooks', $row && (int) $row->nb > 0 ? 'ok' : 'warning', ($row ? (int) $row->nb : 0).' webhook(s) signé(s) actif(s)');
+		$resql = $this->db->query('SELECT COUNT(*) nb FROM '.$this->db->prefix().'sof_integration_connector WHERE entity = '.$this->entity().' AND status = 1');
+		$row = $resql ? $this->db->fetch_object($resql) : null;
+		$checks[] = $this->check('integrations', 'payment_connectors', $row && (int) $row->nb > 0 ? 'ok' : 'warning', ($row ? (int) $row->nb : 0).' connecteur(s) banque/opérateur actif(s)');
+		$checks[] = $this->check('integrations', 'rest_api', isModEnabled('api') ? 'ok' : 'warning', isModEnabled('api') ? 'API REST Dolibarr active ; endpoint /api/index.php/agence' : 'Module API REST Dolibarr inactif');
 		$resql = $this->db->query('SELECT COUNT(*) nb FROM '.$this->db->prefix().'sof_technical_error WHERE entity = '.$this->entity().' AND status IN (0,1)');
 		$row = $resql ? $this->db->fetch_object($resql) : null;
 		$checks[] = $this->check('operations', 'technical_errors', $row && (int) $row->nb === 0 ? 'ok' : 'warning', ($row ? (int) $row->nb : 0).' erreur(s) ouverte(s) ou en reprise');

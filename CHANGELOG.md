@@ -2,6 +2,30 @@
 
 Toutes les évolutions significatives du module Agence sont consignées dans ce fichier.
 
+## [2.3.0] - 2026-08-20
+
+Version d’intégration à l’écosystème PowerERP éditée par iPowerWorld.
+
+### API, événements et BI
+
+- API REST native Dolibarr authentifiée par clé API, avec relecture du compte et des droits à chaque requête ;
+- filtrage systématique par entité et périmètre d’agence, limites de pagination et jeux de données sur liste blanche ;
+- webhooks CloudEvents-like asynchrones et idempotents, signature HMAC-SHA256, tentatives exponentielles et rejeu contrôlé ;
+- événements de clôture, décision de validation, remboursement, dépôt bancaire et alerte ;
+- enregistrement de ces cinq événements dans le module Notification standard de Dolibarr ;
+- exports BI incrémentaux à curseur précis, sans doublon entre lots PostgreSQL.
+
+### Connecteurs et déploiement
+
+- connecteurs pull JSON pour banques, Orange Money et Mobile Money, authentification `Bearer`, `X-API-Key`, Basic ou aucune ;
+- import dans le rapprochement existant, curseur distant, journal de synchronisation et planification par cron ;
+- chiffrement réversible Dolibarr des secrets de webhook et de connecteur ;
+- paquet de configuration versionné et contrôlé par SHA-256 pour développement, recette et production ;
+- exclusion stricte des secrets et remplacement des identifiants techniques par les références métier ;
+- simulation d’import, listes blanches, validation croisée et journal des transferts ;
+- écran administrateur unique pour webhooks, connecteurs, BI et transport de configuration ;
+- scénario transactionnel dédié intégré à la porte qualité locale.
+
 ## [2.2.0] - 2026-08-17
 
 Version d’exploitation industrielle éditée par iPowerWorld.
@@ -73,3 +97,4 @@ Version de référence initiale du dépôt public.
 [2.0.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.0.1
 [2.1.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.1.0
 [2.2.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.2.0
+[2.3.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.0

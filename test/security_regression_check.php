@@ -76,6 +76,10 @@ $expectedSettingKeys = array(
 	'AGENCE_DOCUMENT_RETENTION_DAYS',
 	'AGENCE_TECH_ERROR_RETENTION_DAYS',
 	'AGENCE_ENABLE_PURGE',
+	'AGENCE_ENABLE_WEBHOOKS',
+	'AGENCE_WEBHOOK_TIMEOUT_SECONDS',
+	'AGENCE_CONNECTOR_TIMEOUT_SECONDS',
+	'AGENCE_DEPLOYMENT_ENVIRONMENT',
 );
 $settingDefinitions = function_exists('agence_get_settings_definition') ? agence_get_settings_definition() : array();
 agence_security_assert(array_keys($settingDefinitions) === $expectedSettingKeys, 'setup exposes an exact allowlist of Agence constants');

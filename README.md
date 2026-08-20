@@ -1,6 +1,6 @@
 # Module Dolibarr `agence`
 
-Module PowerERP édité par **iPowerWorld** pour piloter les agences, DAS, caisses et flux financiers dans Dolibarr. La version 2.2 réunit les fonctions auparavant portées par `sofops`, les parcours financiers qualifiés et les fonctions d’exploitation industrielle dans le module unique `agence`.
+Module PowerERP édité par **iPowerWorld** pour piloter les agences, DAS, caisses et flux financiers dans Dolibarr. La version 2.3 réunit les fonctions auparavant portées par `sofops`, les parcours financiers qualifiés, l’exploitation industrielle et les contrats d’intégration PowerERP dans le module unique `agence`.
 
 ## Positionnement
 
@@ -28,6 +28,12 @@ Le module `sofops` doit rester desactive afin d'eviter le doublonnage des menus,
 - journal technique avec reprise contrôlée et charges utiles expurgées des secrets ;
 - contrepassations financières à deux niveaux, sans suppression de l’écriture d’origine ;
 - archivage, conservation, purge à double confirmation et diagnostic administrateur.
+- API REST Dolibarr sécurisée, bornée par droits, entité et périmètre d’agence ;
+- webhooks asynchrones signés HMAC-SHA256 sur clôture, validation, remboursement, dépôt et alerte ;
+- exports BI incrémentaux à curseur sur mouvements, sessions, remboursements, dépôts et alertes ;
+- événements configurables dans le module Notification natif de Dolibarr ;
+- connecteurs synchronisables pour banques, Orange Money et Mobile Money, avec secrets chiffrés ;
+- transport contrôlé de configuration développement/recette/production, avec empreinte et sans secrets.
 
 ## Installation locale
 
@@ -50,6 +56,7 @@ Le quality gate contrôle la syntaxe PHP/JavaScript, l'installation du module, l
 - `doc/Plan_tests_recette.md`
 - `doc/QUALIFICATION_INDUSTRIELLE.md`
 - `doc/FONCTIONS_INDISPENSABLES_2.2.md`
+- `doc/INTEGRATIONS_POWERERP_2.3.md`
 - `CHANGELOG.md`
 
 Éditeur : iPowerWorld — support : csa@ipowerworld.net.

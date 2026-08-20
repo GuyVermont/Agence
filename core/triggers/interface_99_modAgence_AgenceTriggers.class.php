@@ -343,6 +343,20 @@ class InterfaceAgenceTriggers extends DolibarrTriggers
 	private function createAlert(User $user, $type, $severity, $objectType, $objectId, $message)
 	{
 		global $conf;
+		$fkAgence = 0;
+		$fkCaisse = 0;
+		$fkSession = 0;
+		if ($objectType === 'facture' && $objectId > 0) {
+			$sqlScope = 'SELECT fk_agence,fk_caisse,fk_session FROM '.$this->db->prefix().'sof_takepos_link';
+			$sqlScope .= ' WHERE entity = '.((int) $conf->entity).' AND fk_facture = '.((int) $objectId).' ORDER BY rowid DESC LIMIT 1';
+			$scopeResult = $this->db->query($sqlScope);
+			$scope = $scopeResult ? $this->db->fetch_object($scopeResult) : null;
+			if ($scope) {
+				$fkAgence = (int) $scope->fk_agence;
+				$fkCaisse = (int) $scope->fk_caisse;
+				$fkSession = (int) $scope->fk_session;
+			}
+		}
 		$sql = 'SELECT rowid FROM '.$this->db->prefix().'sof_caisse_alerte WHERE entity = '.((int) $conf->entity);
 		$sql .= " AND alert_type = '".$this->db->escape($type)."' AND object_type = '".$this->db->escape($objectType)."'";
 		$sql .= ' AND object_id = '.((int) $objectId).' ORDER BY rowid DESC LIMIT 1';
@@ -354,14 +368,26 @@ class InterfaceAgenceTriggers extends DolibarrTriggers
 		$alert = new SofAlerte($this->db);
 		$alert->entity = (int) $conf->entity;
 		$alert->ref = 'ALT-'.date('Ymd-His').'-'.$objectId;
+		$alert->dedup_key = substr(strtolower((string) $type).':'.strtolower((string) $objectType).':'.((int) $objectId), 0, 255);
 		$alert->alert_type = $type;
 		$alert->severity = $severity;
+		$alert->fk_agence = $fkAgence ?: null;
+		$alert->fk_caisse = $fkCaisse ?: null;
+		$alert->fk_session = $fkSession ?: null;
 		$alert->object_type = $objectType;
 		$alert->object_id = $objectId;
 		$alert->message = $message;
 		$alert->target_roles = 'cash_chief,audit,direction';
 		$alert->date_alert = dol_now();
 		$alert->status = 0;
-		$alert->create($user, 1);
+		$alertId = $alert->create($user, 1);
+		if ($alertId > 0) {
+			require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
+			$integrations = new SofIntegrationService($this->db);
+			$integrations->emitBusinessEvent('alert.created', $objectType, (int) $objectId, $fkAgence, array(
+				'ref' => $alert->ref, 'alert_id' => (int) $alertId, 'alert_type' => $type,
+				'severity' => $severity, 'message' => $message, 'subject' => 'Alerte Agence '.$alert->ref,
+			), $user);
+		}
 	}
 }

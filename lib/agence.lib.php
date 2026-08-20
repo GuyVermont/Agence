@@ -35,6 +35,10 @@ function agence_get_settings_definition()
 		'AGENCE_DOCUMENT_RETENTION_DAYS' => array('label' => 'Conservation des documents (jours)', 'type' => 'integer', 'default' => '3650', 'min' => 365, 'max' => 36500),
 		'AGENCE_TECH_ERROR_RETENTION_DAYS' => array('label' => 'Conservation des erreurs techniques (jours)', 'type' => 'integer', 'default' => '730', 'min' => 90, 'max' => 36500),
 		'AGENCE_ENABLE_PURGE' => array('label' => 'Autoriser la purge après conservation', 'type' => 'boolean', 'default' => '0'),
+		'AGENCE_ENABLE_WEBHOOKS' => array('label' => 'Activer les webhooks signés', 'type' => 'boolean', 'default' => '1'),
+		'AGENCE_WEBHOOK_TIMEOUT_SECONDS' => array('label' => 'Délai maximal webhook (secondes)', 'type' => 'integer', 'default' => '15', 'min' => 5, 'max' => 120),
+		'AGENCE_CONNECTOR_TIMEOUT_SECONDS' => array('label' => 'Délai maximal connecteur (secondes)', 'type' => 'integer', 'default' => '30', 'min' => 5, 'max' => 300),
+		'AGENCE_DEPLOYMENT_ENVIRONMENT' => array('label' => 'Environnement de déploiement', 'type' => 'environment', 'default' => 'development'),
 	);
 }
 
@@ -109,6 +113,13 @@ function agence_validate_setting_update($constname, $rawValue, array $effectiveV
 	} elseif ($type === 'secret') {
 		if (strlen($value) > (int) $definition['max'] || preg_match('/[\x00-\x1F\x7F]/', $value)) {
 			$error = 'Le secret contient des caractères interdits ou dépasse la taille maximale.';
+			return false;
+		}
+		$normalizedValue = $value;
+	} elseif ($type === 'environment') {
+		$value = strtolower($value);
+		if (!in_array($value, array('development', 'staging', 'production'), true)) {
+			$error = 'L’environnement doit être development, staging ou production.';
 			return false;
 		}
 		$normalizedValue = $value;

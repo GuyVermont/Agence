@@ -414,6 +414,7 @@ class SofAgenceOperations
 			$resql = $this->db->query($sql);
 			if ($resql && ($pendingRow = $this->db->fetch_object($resql)) && (int) $pendingRow->nb > 0) {
 				$this->db->commit();
+				$this->emitIntegrationEvent('validation.decided', 'session', (int) $session->id, (int) $session->fk_agence, array('ref' => $session->ref, 'decision' => 'approve', 'final' => false, 'subject' => 'Validation de clôture '.$session->ref), $user);
 				return 1;
 			}
 			$updates = array('status' => SofCaisseSession::STATUS_VALIDATED, 'date_validation' => dol_now(), 'fk_user_validator' => (int) $user->id);
@@ -472,6 +473,9 @@ class SofAgenceOperations
 		SofAgenceService::logAudit($this->db, $user, 'SOF_SESSION_'.strtoupper($action), $session, $old, $this->snapshot($session), isset($params['reason']) ? $params['reason'] : '');
 		if ($managedTransaction) {
 			$this->db->commit();
+		}
+		if ($action === 'validate') {
+			$this->emitIntegrationEvent('validation.decided', 'session', (int) $session->id, (int) $session->fk_agence, array('ref' => $session->ref, 'decision' => 'approve', 'final' => true, 'subject' => 'Clôture validée '.$session->ref), $user);
 		}
 		return 1;
 	}
@@ -568,6 +572,11 @@ class SofAgenceOperations
 		$this->createValidationChain($user, 'session', (int) $session->id, abs($gap), (int) $session->fk_agence, (int) $session->fk_das, '');
 		SofAgenceService::logAudit($this->db, $user, 'SOF_SESSION_CLOSE', $session, null, array('closing' => $closingId, 'gap' => $gap));
 		$this->db->commit();
+		$this->emitIntegrationEvent('cash_closure.completed', 'session', (int) $session->id, (int) $session->fk_agence, array(
+			'ref' => $session->ref, 'closing_id' => (int) $closingId, 'fk_caisse' => (int) $session->fk_caisse,
+			'theoretical_amount' => (float) $theoretical, 'physical_amount' => (float) $physical, 'gap_amount' => (float) $gap,
+			'subject' => 'Clôture de caisse '.$session->ref,
+		), $user);
 		return 1;
 	}
 
@@ -762,6 +771,10 @@ class SofAgenceOperations
 		$this->recalculateSession((int) $session->id);
 		$this->updateRow('sof_caisse_session', (int) $session->id, array('status' => 2), $user);
 		$this->db->commit();
+		$this->emitIntegrationEvent('validation.decided', 'refund', (int) $refund->id, (int) $refund->fk_agence, array(
+			'ref' => $refund->ref, 'decision' => 'approve', 'final' => $pending === 0, 'approved_amount' => (float) $approvedAmount,
+			'subject' => 'Validation remboursement '.$refund->ref,
+		), $user);
 		return 1;
 	}
 
@@ -1528,6 +1541,9 @@ class SofAgenceOperations
 			'rejection_reason' => trim((string) $reason), 'status' => 8,
 		), $user, (int) $refund->status);
 		$result < 0 ? $this->db->rollback() : $this->db->commit();
+		if ($result > 0) {
+			$this->emitIntegrationEvent('validation.decided', 'refund', (int) $refund->id, (int) $refund->fk_agence, array('ref' => $refund->ref, 'decision' => 'reject', 'reason' => trim((string) $reason), 'final' => true, 'subject' => 'Remboursement rejeté '.$refund->ref), $user);
+		}
 		return $result;
 	}
 
@@ -1679,6 +1695,11 @@ class SofAgenceOperations
 		}
 		$this->recalculateSession((int) $session->rowid);
 		$this->db->commit();
+		$this->emitIntegrationEvent('refund.completed', 'refund', (int) $refund->id, (int) $refund->fk_agence, array(
+			'ref' => $refund->ref, 'fk_soc' => (int) $refund->fk_soc, 'fk_facture_origin' => (int) $refund->fk_facture_origin,
+			'fk_facture_avoir' => (int) $creditNoteId, 'amount' => (float) $amount, 'payment_mode' => $refundMode,
+			'subject' => 'Remboursement exécuté '.$refund->ref,
+		), $user);
 		return 1;
 	}
 
@@ -1915,6 +1936,10 @@ class SofAgenceOperations
 		}
 		$this->recalculateSession((int) $session->rowid);
 		$this->db->commit();
+		$this->emitIntegrationEvent('bank_deposit.completed', 'deposit', (int) $deposit->id, (int) $deposit->fk_agence, array(
+			'ref' => $deposit->ref, 'stage' => 'executed', 'amount' => (float) $deposit->amount,
+			'fk_bank_account' => (int) $deposit->fk_bank_account, 'subject' => 'Dépôt bancaire exécuté '.$deposit->ref,
+		), $user);
 		return 1;
 	}
 
@@ -1958,6 +1983,10 @@ class SofAgenceOperations
 			$this->recalculateSession((int) $destinationSession->rowid);
 		}
 		$this->db->commit();
+		$this->emitIntegrationEvent('bank_deposit.completed', 'deposit', (int) $deposit->id, (int) $deposit->fk_agence, array(
+			'ref' => $deposit->ref, 'stage' => 'reconciled', 'amount' => (float) $deposit->amount,
+			'fk_bank' => (int) $bankLineId, 'reconcile_reference' => trim((string) $reference), 'subject' => 'Dépôt bancaire rapproché '.$deposit->ref,
+		), $user);
 		return 1;
 	}
 
@@ -2148,6 +2177,12 @@ class SofAgenceOperations
 		}
 		$result = $pending === 0 ? $this->updateRow($config['table'], (int) $objectId, $updates, $user, 0) : 1;
 		$result < 0 ? $this->db->rollback() : $this->db->commit();
+		if ($result > 0) {
+			$this->emitIntegrationEvent('validation.decided', $config['workflow'], (int) $objectId, (int) $record->fk_agence, array(
+				'ref' => !empty($record->ref) ? $record->ref : $config['workflow'].'-'.$objectId, 'decision' => 'approve', 'final' => $pending === 0,
+				'subject' => 'Validation '.$config['workflow'].' #'.$objectId,
+			), $user);
+		}
 		return $result;
 	}
 
@@ -2165,7 +2200,7 @@ class SofAgenceOperations
 			return $this->fail('Permission refusée ou motif de rejet absent.');
 		}
 		$config = $map[$objectType];
-		$sql = 'SELECT status, fk_agence, fk_das FROM '.$this->db->prefix().$config['table'].' WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $objectId);
+		$sql = 'SELECT ref, status, fk_agence, fk_das FROM '.$this->db->prefix().$config['table'].' WHERE entity = '.((int) $conf->entity).' AND rowid = '.((int) $objectId);
 		$resql = $this->db->query($sql);
 		$record = $resql ? $this->db->fetch_object($resql) : null;
 		if (!$record || (int) $record->status !== 0) {
@@ -2184,6 +2219,12 @@ class SofAgenceOperations
 		$cancelResult = $this->db->query($sql);
 		$result = $cancelResult ? $this->updateRow($config['table'], (int) $objectId, array('status' => (int) $config['status']), $user, 0) : -1;
 		$result < 0 ? $this->db->rollback() : $this->db->commit();
+		if ($result > 0) {
+			$this->emitIntegrationEvent('validation.decided', $objectType, (int) $objectId, (int) $record->fk_agence, array(
+				'ref' => $record->ref, 'decision' => 'reject', 'reason' => $reason, 'final' => true,
+				'subject' => 'Validation rejetée '.$record->ref,
+			), $user);
+		}
 		return $result;
 	}
 
@@ -2230,6 +2271,11 @@ class SofAgenceOperations
 				return -1;
 			}
 			$this->db->commit();
+			$sessionAgency = SofAgenceService::validationAgencyId($this->db, 'session', (int) $step->object_id);
+			$this->emitIntegrationEvent('validation.decided', 'session', (int) $step->object_id, (int) $sessionAgency, array(
+				'ref' => 'SESSION-'.((int) $step->object_id), 'decision' => 'reject', 'reason' => $reason, 'final' => true,
+				'subject' => 'Clôture rejetée #'.((int) $step->object_id),
+			), $user);
 			return 1;
 		}
 		$supportingMap = array('customer_po' => 'boncommande', 'bst' => 'bst', 'manager_instruction' => 'instruction');
@@ -2305,6 +2351,12 @@ class SofAgenceOperations
 		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 		SofAgenceService::logAudit($this->db, $user, 'SOF_DEFERRED_'.strtoupper($action), $record, $this->snapshot($old), $this->snapshot($record), $reason);
 		$this->db->commit();
+		if ($action === 'validate') {
+			$this->emitIntegrationEvent('validation.decided', 'deferred_payment', (int) $recordId, (int) $record->fk_agence, array(
+				'ref' => $record->ref, 'decision' => 'approve', 'final' => true, 'amount' => (float) $record->expected_amount,
+				'subject' => 'Paiement différé validé '.$record->ref,
+			), $user);
+		}
 		return 1;
 	}
 
@@ -2371,6 +2423,10 @@ class SofAgenceOperations
 		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofagenceservice.class.php';
 		SofAgenceService::logAudit($this->db, $user, 'SOF_CREDIT_VALIDATE', $tracking, $this->snapshot($tracking), $updates);
 		$this->db->commit();
+		$this->emitIntegrationEvent('validation.decided', 'credit_note', (int) $trackingId, (int) $tracking->fk_agence, array(
+			'ref' => $tracking->ref, 'decision' => 'approve', 'final' => true, 'amount' => (float) $tracking->initial_amount,
+			'subject' => 'Avoir validé '.$tracking->ref,
+		), $user);
 		return 1;
 	}
 
@@ -2591,6 +2647,18 @@ class SofAgenceOperations
 			return is_float($value) ? price2num($value) : (string) ((int) $value);
 		}
 		return "'".$this->db->escape((string) $value)."'";
+	}
+
+	/** Emit only after the financial transaction has committed; delivery remains asynchronous. */
+	private function emitIntegrationEvent($eventCode, $objectType, $objectId, $fkAgence, array $data, User $actor)
+	{
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
+		$service = new SofIntegrationService($this->db);
+		$result = $service->emitBusinessEvent($eventCode, $objectType, (int) $objectId, (int) $fkAgence, $data, $actor);
+		if ($result < 0) {
+			dol_syslog(__METHOD__.' '.$service->error, LOG_WARNING);
+		}
+		return $result;
 	}
 
 	private function fail($message, $errors = array())

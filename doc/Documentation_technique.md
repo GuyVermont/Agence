@@ -2,7 +2,7 @@
 
 ## Version cible
 
-- Module Agence : 2.2.0
+- Module Agence : 2.3.0
 - Dolibarr : 22.0.4
 - Base locale detectee : PostgreSQL
 - Prefixe : `llx_`
@@ -14,7 +14,7 @@
 - Classe descriptor : `modAgence`
 - Droits : `$user->hasRight('agence', '<objet>', '<action>')`
 - Tables metier : `llx_sof_*`
-- Integration : hooks, triggers, permissions, menus, modeles PDF, exports, API REST si necessaire
+- Integration : hooks, triggers, permissions, menus, modeles PDF, exports, API REST securisee, webhooks, BI et connecteurs
 - Interdit : modification directe du noyau Dolibarr
 - Module remplace : `sofops` (a maintenir desactive)
 
@@ -44,7 +44,7 @@ Le service central `class/sofagenceoperations.class.php` porte les transactions 
 
 Les pages HTTP ne modifient pas directement les soldes : elles appellent le service central. Les champs calcules ou systeme des objets operationnels sont en lecture seule dans le CRUD generique.
 
-La version 2.2 ajoute trois services bornés à l'entité courante : `SofNotificationService` pour les notifications, escalades, recouvrement et reprises ; `SofImportService` pour les relevés et référentiels CSV ; `SofAgenceIndustrialService` pour le cron consolidé, les contrepassations, la conservation et le diagnostic.
+La version 2.2 ajoute trois services bornés à l'entité courante : `SofNotificationService` pour les notifications, escalades, recouvrement et reprises ; `SofImportService` pour les relevés et référentiels CSV ; `SofAgenceIndustrialService` pour le cron consolidé, les contrepassations, la conservation et le diagnostic. La version 2.3 ajoute `SofIntegrationService`, frontière unique pour l’API, les webhooks signés, les flux BI, les connecteurs et le transport de configuration.
 
 ## Tables propres SOFITOUL
 
@@ -94,6 +94,11 @@ Tables d'exploitation industrielle :
 
 - `llx_sof_notification_config`
 - `llx_sof_notification_outbox`
+- `llx_sof_webhook_endpoint`
+- `llx_sof_webhook_delivery`
+- `llx_sof_integration_connector`
+- `llx_sof_integration_sync`
+- `llx_sof_config_transfer`
 - `llx_sof_bank_import`
 - `llx_sof_bank_import_line`
 - `llx_sof_recouvrement`
@@ -127,4 +132,4 @@ Les champs suivants portent les liens vers le referentiel Dolibarr :
 5. Tresorerie : versement coffre, reception, depot banque, lignes natives et rapprochement.
 6. Integration : triggers, hooks, TakePOS, PDF, exports, reporting, supervision et preparation comptable.
 
-Les evolutions ulterieures possibles (API REST publique, scoring risque ou BI externe) sont des extensions et non des pre-requis au fonctionnement quotidien du module.
+L’API REST et les exports BI externes sont disponibles depuis la version 2.3. Le scoring de risque reste une extension possible et non un prérequis au fonctionnement quotidien du module.

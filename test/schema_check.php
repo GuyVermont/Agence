@@ -103,6 +103,11 @@ $industrialStructures = array(
 	'sof_technical_error' => array('operation_code','retry_handler','payload','attempts','max_attempts','next_retry','status'),
 	'sof_financial_reversal' => array('fk_mouvement_original','fk_mouvement_reversal','reason','evidence_ref','status'),
 	'sof_archive_log' => array('object_type','object_id','policy_code','action_type','content_hash','action_date'),
+	'sof_webhook_endpoint' => array('ref','endpoint_url','event_filter','secret_encrypted','max_attempts','status'),
+	'sof_webhook_delivery' => array('delivery_ref','event_id','event_code','fk_endpoint','payload','attempts','next_attempt','http_status','status'),
+	'sof_integration_connector' => array('ref','connector_type','endpoint_url','auth_type','credential_encrypted','remote_cursor','date_next_sync','status'),
+	'sof_integration_sync' => array('ref','fk_connector','direction','imported_count','response_checksum','date_start','status'),
+	'sof_config_transfer' => array('ref','direction','source_environment','target_environment','package_checksum','dry_run','status'),
 );
 foreach ($industrialStructures as $tableName => $fields) {
 	$table = $db->prefix().$tableName;
@@ -148,6 +153,11 @@ foreach (array(
 	array('sof_recouvrement','uk_sof_recouvrement_deferred'),
 	array('sof_bulk_import','uk_sof_bulk_import_checksum'),
 	array('sof_financial_reversal','uk_sof_financial_reversal_original'),
+	array('sof_webhook_endpoint','uk_sof_webhook_endpoint_ref'),
+	array('sof_webhook_delivery','uk_sof_webhook_delivery_endpoint_event'),
+	array('sof_integration_connector','uk_sof_integration_connector_ref'),
+	array('sof_integration_sync','uk_sof_integration_sync_ref'),
+	array('sof_config_transfer','uk_sof_config_transfer_ref'),
 ) as $indexCheck) {
 	$state = agence_schema_has_index($db->prefix().$indexCheck[0], $indexCheck[1]);
 	agence_schema_result($state === true, 'unique industrial index '.$indexCheck[1].' is installed', $state === false || $state === null);

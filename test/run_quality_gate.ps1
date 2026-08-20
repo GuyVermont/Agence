@@ -38,6 +38,7 @@ $tests = @(
 	'operational_check.php',
 	'lifecycle_qualification_check.php',
 	'industrial_operations_check.php',
+	'integration_ecosystem_check.php',
 	'concurrency_check.php',
 	'entity_isolation_check.php',
 	'security_regression_check.php',

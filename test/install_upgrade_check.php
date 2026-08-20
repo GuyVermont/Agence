@@ -21,7 +21,7 @@ function agence_upgrade_assert($condition, $label, $detail = '')
 $module = new modAgence($db);
 $result = $module->init();
 agence_upgrade_assert($result > 0, 'module activation applies additive industrial migrations', $module->error);
-$tables = array('sof_notification_config','sof_notification_outbox','sof_bank_import','sof_bank_import_line','sof_recouvrement','sof_recouvrement_action','sof_bulk_import','sof_bulk_import_line','sof_technical_error','sof_financial_reversal','sof_archive_log');
+$tables = array('sof_notification_config','sof_notification_outbox','sof_bank_import','sof_bank_import_line','sof_recouvrement','sof_recouvrement_action','sof_bulk_import','sof_bulk_import_line','sof_technical_error','sof_financial_reversal','sof_archive_log','sof_webhook_endpoint','sof_webhook_delivery','sof_integration_connector','sof_integration_sync','sof_config_transfer');
 foreach ($tables as $table) {
 	$resql = $db->DDLDescTable($db->prefix().$table, '');
 	agence_upgrade_assert($resql && $db->num_rows($resql) > 0, 'industrial table '.$table.' is installed');
@@ -44,7 +44,10 @@ if (!$row || (int) $row->nb !== 2) {
 agence_upgrade_assert($row && (int) $row->nb === 2, 'both Agence scheduled jobs are installed and active', implode(', ', $cronDetail));
 $resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix()."rights_def WHERE entity=".((int) $conf->entity)." AND module='agence'");
 $row = $resql ? $db->fetch_object($resql) : null;
-agence_upgrade_assert($row && (int) $row->nb >= 45, 'all Agence permissions are installed in the current entity');
+agence_upgrade_assert($row && (int) $row->nb >= 53, 'all Agence permissions are installed in the current entity');
+$resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix()."c_action_trigger WHERE code IN ('AGENCE_CASH_CLOSURE_COMPLETED','AGENCE_VALIDATION_DECIDED','AGENCE_REFUND_COMPLETED','AGENCE_BANK_DEPOSIT_COMPLETED','AGENCE_ALERT_CREATED')");
+$row = $resql ? $db->fetch_object($resql) : null;
+agence_upgrade_assert($row && (int) $row->nb === 5, 'Agence business events are registered in Dolibarr Notification');
 $resql = $db->query('SELECT COUNT(*) nb FROM '.$db->prefix()."menu WHERE module='agence' AND entity IN (0,".((int) $conf->entity).')');
 $row = $resql ? $db->fetch_object($resql) : null;
 agence_upgrade_assert($row && (int) $row->nb === count($module->menu), 'all Agence menus are refreshed during upgrade', $row ? ((int) $row->nb).'/'.count($module->menu) : 'query failed');

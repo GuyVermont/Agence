@@ -10,10 +10,20 @@ class ActionsAgence
 	public $resprints = '';
 	/** @var array<int,string> */
 	public $errors = array();
+	/** @var array<string,mixed> */
+	public $results = array();
 
 	public function __construct($db)
 	{
 		$this->db = $db;
+	}
+
+	/** Expose Agence events in Dolibarr's standard configurable Notification UI. */
+	public function notifsupported($parameters, &$object, &$action, $hookmanager)
+	{
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
+		$this->results = array('arrayofnotifsupported' => SofIntegrationService::dolibarrNotificationEvents());
+		return 0;
 	}
 
 	/** Display agency/session linkage on native invoice, payment and bank cards. */

@@ -27,6 +27,7 @@ require_once DOL_DOCUMENT_ROOT.'/custom/agence/core/modules/agence/doc/pdf_agenc
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofnotificationservice.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofimportservice.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofindustrialservice.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
 
 $errors = 0;
 
@@ -41,11 +42,12 @@ function agence_check_line($ok, $label)
 
 $module = new modAgence($GLOBALS['db']);
 agence_check_line($module->name === 'Agence', 'module descriptor loaded');
-agence_check_line(version_compare($module->version, '2.2.0', '>='), 'industrial module version loaded');
+agence_check_line(version_compare($module->version, '2.3.0', '>='), 'PowerERP integration module version loaded');
 agence_check_line($module->editor_name === 'iPowerWorld' && $module->editor_url === 'https://ipowerworld.net', 'iPowerWorld publisher identity declared');
-agence_check_line(count($module->rights) >= 45, 'module permissions declared');
-agence_check_line(count($module->menu) >= 30, 'module menus declared');
-agence_check_line(class_exists('SofNotificationService') && class_exists('SofImportService') && class_exists('SofAgenceIndustrialService'), 'industrial services loaded');
+agence_check_line(count($module->rights) >= 53, 'module permissions declared');
+agence_check_line(count($module->menu) >= 31, 'module menus declared');
+agence_check_line(class_exists('SofNotificationService') && class_exists('SofImportService') && class_exists('SofAgenceIndustrialService') && class_exists('SofIntegrationService'), 'industrial and integration services loaded');
+agence_check_line(is_file(DOL_DOCUMENT_ROOT.'/custom/agence/class/api_agence.class.php'), 'secured Agence REST API class present');
 
 $registry = agence_get_object_registry();
 agence_check_line(count($registry) >= 32, 'CRUD object registry loaded');
@@ -61,7 +63,7 @@ agence_check_line(function_exists('agence_report_dataset'), 'reporting helpers l
 $sqlFiles = glob(DOL_DOCUMENT_ROOT.'/custom/agence/sql/*.sql');
 agence_check_line(count($sqlFiles) >= 20, 'SQL install files present');
 
-$requiredTables = array('sof_agence', 'sof_das', 'sof_caisse', 'sof_caisse_session', 'sof_caisse_mouvement', 'sof_paiement_differe', 'sof_remboursement', 'sof_caisse_auditlog', 'sof_notification_config', 'sof_notification_outbox', 'sof_bank_import', 'sof_bank_import_line', 'sof_recouvrement', 'sof_recouvrement_action', 'sof_bulk_import', 'sof_bulk_import_line', 'sof_technical_error', 'sof_financial_reversal', 'sof_archive_log');
+$requiredTables = array('sof_agence', 'sof_das', 'sof_caisse', 'sof_caisse_session', 'sof_caisse_mouvement', 'sof_paiement_differe', 'sof_remboursement', 'sof_caisse_auditlog', 'sof_notification_config', 'sof_notification_outbox', 'sof_bank_import', 'sof_bank_import_line', 'sof_recouvrement', 'sof_recouvrement_action', 'sof_bulk_import', 'sof_bulk_import_line', 'sof_technical_error', 'sof_financial_reversal', 'sof_archive_log', 'sof_webhook_endpoint', 'sof_webhook_delivery', 'sof_integration_connector', 'sof_integration_sync', 'sof_config_transfer');
 foreach ($requiredTables as $table) {
 	$info = $GLOBALS['db']->DDLInfoTable($GLOBALS['db']->prefix().$table);
 	echo (!empty($info) ? '[OK] ' : '[WARN] ').'database table '.$GLOBALS['db']->prefix().$table.(!empty($info) ? ' exists' : ' not found yet, activate/reload module SQL').PHP_EOL;

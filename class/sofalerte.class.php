@@ -129,6 +129,12 @@ class SofAlerte extends SofCommonObject
 		$actor = $user instanceof User ? $user : $GLOBALS['user'];
 		$result = $this->create($actor, 1);
 		if ($result > 0) {
+			require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofintegrationservice.class.php';
+			$integrations = new SofIntegrationService($this->db);
+			$integrations->emitBusinessEvent('alert.created', $objectType, (int) $objectId, (int) $fkAgence, array(
+				'ref' => $this->ref, 'alert_id' => (int) $result, 'alert_type' => $type,
+				'severity' => $severity, 'message' => $message, 'subject' => 'Alerte Agence '.$this->ref,
+			), $actor instanceof User ? $actor : null);
 			return 1;
 		}
 		// A concurrent detector may have inserted the same open alert first.

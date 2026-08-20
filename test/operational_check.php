@@ -173,10 +173,12 @@ $resql = $db->query('SELECT status, billing_status, reconcile_status FROM '.$db-
 $canceledTakepos = $resql ? $db->fetch_object($resql) : null;
 $resql = $db->query("SELECT COUNT(*) reversals FROM ".$db->prefix()."sof_caisse_mouvement WHERE fk_facture = ".((int) $posInvoiceId)." AND source_type = 'reversal'");
 $takeposReversals = $resql ? $db->fetch_object($resql) : null;
-$resql = $db->query("SELECT COUNT(*) alerts FROM ".$db->prefix()."sof_caisse_alerte WHERE object_type = 'facture' AND object_id = ".((int) $posInvoiceId)." AND alert_type = 'takepos_cancellation'");
+$resql = $db->query("SELECT COUNT(*) alerts, MIN(fk_agence) fk_agence, MIN(fk_caisse) fk_caisse, MIN(fk_session) fk_session FROM ".$db->prefix()."sof_caisse_alerte WHERE object_type = 'facture' AND object_id = ".((int) $posInvoiceId)." AND alert_type = 'takepos_cancellation'");
 $takeposAlerts = $resql ? $db->fetch_object($resql) : null;
 agence_operational_assert($cancelResult === 0 && $secondCancelResult === 0 && $canceledTakepos && (int) $canceledTakepos->status === 0 && (int) $canceledTakepos->billing_status === 9, 'TakePOS cancellation closes the ticket context');
-agence_operational_assert($takeposReversals && (int) $takeposReversals->reversals === 1 && $takeposAlerts && (int) $takeposAlerts->alerts === 1, 'TakePOS cancellation reversal and alert are idempotent');
+agence_operational_assert($takeposReversals && (int) $takeposReversals->reversals === 1 && $takeposAlerts && (int) $takeposAlerts->alerts === 1
+	&& (int) $takeposAlerts->fk_agence === $agencyId && (int) $takeposAlerts->fk_caisse === $cashDeskId && (int) $takeposAlerts->fk_session === $sessionId,
+	'TakePOS cancellation reversal and agency-scoped alert are idempotent');
 
 $unmappedInvoice = new Facture($db);
 $unmappedInvoice->socid = (int) $thirdParty->rowid;

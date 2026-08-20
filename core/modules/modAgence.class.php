@@ -39,7 +39,7 @@ class modAgence extends DolibarrModules
 		$this->descriptionlong = 'ModuleAgenceDescLong';
 		$this->editor_name = 'iPowerWorld';
 		$this->editor_url = 'https://ipowerworld.net';
-		$this->version = '2.2.0';
+		$this->version = '2.3.0';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'building';
 
@@ -66,6 +66,7 @@ class modAgence extends DolibarrModules
 					'takeposfrontend',
 					'takeposinvoice',
 					'takeposproductsearch',
+					'notification',
 					'globalcard'
 				),
 				'entity' => '1'
@@ -108,7 +109,11 @@ class modAgence extends DolibarrModules
 			17 => array('AGENCE_AUDIT_RETENTION_DAYS', 'chaine', '3650', 'Audit retention period', 0, 'current', 1),
 			18 => array('AGENCE_DOCUMENT_RETENTION_DAYS', 'chaine', '3650', 'Document retention period', 0, 'current', 1),
 			19 => array('AGENCE_TECH_ERROR_RETENTION_DAYS', 'chaine', '730', 'Technical error retention period', 0, 'current', 1),
-			20 => array('AGENCE_ENABLE_PURGE', 'chaine', '0', 'Enable irreversible purge after retention', 0, 'current', 1)
+			20 => array('AGENCE_ENABLE_PURGE', 'chaine', '0', 'Enable irreversible purge after retention', 0, 'current', 1),
+			21 => array('AGENCE_ENABLE_WEBHOOKS', 'chaine', '1', 'Enable signed asynchronous webhooks', 0, 'current', 1),
+			22 => array('AGENCE_WEBHOOK_TIMEOUT_SECONDS', 'chaine', '15', 'Webhook response timeout', 0, 'current', 1),
+			23 => array('AGENCE_CONNECTOR_TIMEOUT_SECONDS', 'chaine', '30', 'Bank and payment connector response timeout', 0, 'current', 1),
+			24 => array('AGENCE_DEPLOYMENT_ENVIRONMENT', 'chaine', 'development', 'Deployment environment used for configuration transport', 0, 'current', 1)
 		);
 
 		if (!isModEnabled('agence')) {
@@ -197,6 +202,14 @@ class modAgence extends DolibarrModules
 		$this->addRight($r, 43, 'ApproveFinancialReversal', 'reversal', 'approve');
 		$this->addRight($r, 44, 'ManageRetentionAndPurge', 'archive', 'manage');
 		$this->addRight($r, 45, 'ReadAgencyDiagnostics', 'diagnostic', 'read');
+		$this->addRight($r, 46, 'ReadAgencyRestApi', 'api', 'read');
+		$this->addRight($r, 47, 'ManageAgencyWebhooks', 'webhook', 'manage');
+		$this->addRight($r, 48, 'ReplayAgencyWebhooks', 'webhook', 'replay');
+		$this->addRight($r, 49, 'ExportAgencyBiData', 'bi', 'export');
+		$this->addRight($r, 50, 'ManageAgencyConnectors', 'connector', 'manage');
+		$this->addRight($r, 51, 'SynchronizeAgencyConnectors', 'connector', 'sync');
+		$this->addRight($r, 52, 'ExportAgencyConfiguration', 'configtransfer', 'export');
+		$this->addRight($r, 53, 'ImportAgencyConfiguration', 'configtransfer', 'import');
 
 		$this->menu = array();
 		$r = 0;
@@ -211,7 +224,7 @@ class modAgence extends DolibarrModules
 			'langs' => 'agence@agence',
 			'position' => 1000,
 			'enabled' => 'isModEnabled("agence")',
-			'perms' => '$user->admin || $user->hasRight("agence", "agence", "read") || $user->hasRight("agence", "caisse", "read") || $user->hasRight("agence", "session", "open") || $user->hasRight("agence", "session", "validate") || $user->hasRight("agence", "mouvement", "cashin") || $user->hasRight("agence", "paiementdiffere", "create") || $user->hasRight("agence", "remboursement", "request") || $user->hasRight("agence", "controle", "create") || $user->hasRight("agence", "compta", "post") || $user->hasRight("agence", "report", "read") || $user->hasRight("agence", "scope", "write") || $user->hasRight("agence", "parametre", "write") || $user->hasRight("agence", "notification", "manage") || $user->hasRight("agence", "bankimport", "import") || $user->hasRight("agence", "recouvrement", "manage") || $user->hasRight("agence", "technicalerror", "manage") || $user->hasRight("agence", "diagnostic", "read")',
+			'perms' => '$user->admin || $user->hasRight("agence", "agence", "read") || $user->hasRight("agence", "caisse", "read") || $user->hasRight("agence", "session", "open") || $user->hasRight("agence", "session", "validate") || $user->hasRight("agence", "mouvement", "cashin") || $user->hasRight("agence", "paiementdiffere", "create") || $user->hasRight("agence", "remboursement", "request") || $user->hasRight("agence", "controle", "create") || $user->hasRight("agence", "compta", "post") || $user->hasRight("agence", "report", "read") || $user->hasRight("agence", "scope", "write") || $user->hasRight("agence", "parametre", "write") || $user->hasRight("agence", "notification", "manage") || $user->hasRight("agence", "bankimport", "import") || $user->hasRight("agence", "recouvrement", "manage") || $user->hasRight("agence", "technicalerror", "manage") || $user->hasRight("agence", "diagnostic", "read") || $user->hasRight("agence", "api", "read") || $user->hasRight("agence", "webhook", "manage") || $user->hasRight("agence", "connector", "manage") || $user->hasRight("agence", "bi", "export") || $user->hasRight("agence", "configtransfer", "export") || $user->hasRight("agence", "configtransfer", "import")',
 			'target' => '',
 			'user' => 0,
 		);
@@ -242,6 +255,7 @@ class modAgence extends DolibarrModules
 		$this->addLeftMenu($r, 'AuditTrail', '/agence/audit/list.php', 'agence_audit', '$user->hasRight("agence", "audit", "read")', 'fa-fingerprint');
 		$this->addLeftMenu($r, 'TerminalMappings', '/agence/admin/terminal_mapping.php', 'agence_terminal_mapping', '$user->hasRight("agence", "caisse", "write") || $user->hasRight("agence", "parametre", "write")', 'fa-cash-register');
 		$this->addLeftMenu($r, 'AgencyAccountingPosting', '/agence/admin/accounting.php', 'agence_accounting', '$user->hasRight("agence", "compta", "post")', 'fa-scale-balanced');
+		$this->addLeftMenu($r, 'Intégrations PowerERP', '/agence/admin/integrations.php', 'agence_integrations', '$user->admin || $user->hasRight("agence", "webhook", "manage") || $user->hasRight("agence", "connector", "manage") || $user->hasRight("agence", "bi", "export") || $user->hasRight("agence", "configtransfer", "export") || $user->hasRight("agence", "configtransfer", "import")', 'fa-plug');
 		$this->addLeftMenu($r, 'Notifications et escalades', '/agence/admin/industrial.php?section=notifications', 'agence_notifications', '$user->hasRight("agence", "notification", "manage")', 'fa-bell');
 		$this->addLeftMenu($r, 'Erreurs et reprises', '/agence/admin/industrial.php?section=errors', 'agence_errors', '$user->hasRight("agence", "technicalerror", "manage")', 'fa-triangle-exclamation');
 		$this->addLeftMenu($r, 'Archivage et conservation', '/agence/admin/industrial.php?section=retention', 'agence_retention', '$user->hasRight("agence", "archive", "manage")', 'fa-box-archive');
@@ -315,6 +329,9 @@ class modAgence extends DolibarrModules
 			return -1;
 		}
 		$this->seedPaymentModes();
+		if ($this->seedIntegrationEvents() < 0) {
+			return -1;
+		}
 		// Dolibarr's menu insertion is not idempotent: an existing first menu
 		// makes the complete activation transaction roll back. Install all other
 		// module components first, then replace only this module's owned menus.
@@ -336,6 +353,25 @@ class modAgence extends DolibarrModules
 			$this->db->query($cronSql);
 		}
 		return $result > 0 ? $result : -1;
+	}
+
+	/** Register Agence business events in Dolibarr's configurable Notification module. */
+	private function seedIntegrationEvents()
+	{
+		$events = array(
+			array('AGENCE_CASH_CLOSURE_COMPLETED', 'Clôture de caisse Agence terminée', 'Une clôture de caisse Agence a été finalisée.'),
+			array('AGENCE_VALIDATION_DECIDED', 'Validation Agence décidée', 'Une étape de validation Agence a été approuvée ou rejetée.'),
+			array('AGENCE_REFUND_COMPLETED', 'Remboursement Agence exécuté', 'Un remboursement Agence a été exécuté.'),
+			array('AGENCE_BANK_DEPOSIT_COMPLETED', 'Dépôt bancaire Agence traité', 'Un dépôt bancaire Agence a été exécuté ou rapproché.'),
+			array('AGENCE_ALERT_CREATED', 'Alerte Agence créée', 'Une alerte opérationnelle Agence a été créée.'),
+		);
+		foreach ($events as $position => $event) {
+			$sql = 'INSERT INTO '.$this->db->prefix().'c_action_trigger (code,label,description,elementtype,rang) SELECT ';
+			$sql .= "'".$this->db->escape($event[0])."','".$this->db->escape($event[1])."','".$this->db->escape($event[2])."','agence',".(700 + $position);
+			$sql .= ' WHERE NOT EXISTS (SELECT 1 FROM '.$this->db->prefix()."c_action_trigger WHERE code='".$this->db->escape($event[0])."')";
+			if (!$this->db->query($sql)) return -1;
+		}
+		return 1;
 	}
 
 	/** Apply additive schema upgrades when an existing installation is re-enabled. */
