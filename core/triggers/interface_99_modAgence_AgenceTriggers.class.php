@@ -44,6 +44,10 @@ class InterfaceAgenceTriggers extends DolibarrTriggers
 		if (!isModEnabled('agence')) {
 			return 0;
 		}
+		if ($action === 'BILL_VALIDATE' && $this->synchronizeNativeInvoice($object, $user) < 0) {
+			$this->errors[] = $this->error;
+			return -1;
+		}
 
 		// TakePOS is enforced server-side. The browser banner is only guidance: a
 		// ticket cannot be validated if its terminal has no mapped open session.
@@ -96,6 +100,95 @@ class InterfaceAgenceTriggers extends DolibarrTriggers
 
 		dol_syslog("Agence trigger audited sensitive action ".$action." on object ".get_class($object), LOG_DEBUG);
 		return 0;
+	}
+
+	/**
+	 * Enrich a native invoice from its order/customer context and register native
+	 * Dolibarr credit notes in the Agence follow-up without recreating a document.
+	 */
+	private function synchronizeNativeInvoice($invoice, User $user)
+	{
+		global $conf;
+		if (!is_object($invoice) || empty($invoice->id) || (int) $invoice->entity !== (int) $conf->entity) return 0;
+		$sql = 'SELECT * FROM '.$this->db->prefix().'sof_facture_link WHERE entity='.(int) $conf->entity.' AND fk_facture='.(int) $invoice->id.' ORDER BY rowid DESC LIMIT 1';
+		$resql = $this->db->query($sql);
+		$invoiceLink = $resql ? $this->db->fetch_object($resql) : null;
+
+		if ((int) $invoice->type === 2) {
+			$sql = 'SELECT rowid FROM '.$this->db->prefix().'sof_avoir_tracking WHERE entity='.(int) $conf->entity.' AND fk_facture_avoir='.(int) $invoice->id.' LIMIT 1';
+			$resql = $this->db->query($sql);
+			if ($resql && $this->db->num_rows($resql) > 0) return 0;
+			$originId = !empty($invoice->fk_facture_source) ? (int) $invoice->fk_facture_source : 0;
+			if ($originId <= 0) return 0;
+			$sql = 'SELECT fk_agence,fk_caisse,fk_session,fk_das FROM '.$this->db->prefix().'sof_facture_link WHERE entity='.(int) $conf->entity.' AND fk_facture='.$originId.' ORDER BY rowid DESC LIMIT 1';
+			$resql = $this->db->query($sql);
+			$origin = $resql ? $this->db->fetch_object($resql) : null;
+			if (!$origin || empty($origin->fk_agence)) return 0;
+			require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofavoirtracking.class.php';
+			$tracking = new SofAvoirTracking($this->db);
+			$tracking->entity = (int) $conf->entity;
+			$tracking->ref = substr('AVO-'.$invoice->ref, 0, 64);
+			$tracking->fk_facture_avoir = (int) $invoice->id;
+			$tracking->fk_facture_origin = $originId;
+			$tracking->fk_soc = (int) $invoice->socid;
+			$tracking->fk_agence = (int) $origin->fk_agence;
+			$tracking->fk_session = (int) $origin->fk_session ?: null;
+			$tracking->fk_das = (int) $origin->fk_das ?: null;
+			$tracking->initial_amount = abs((float) $invoice->total_ttc);
+			$tracking->used_amount = 0;
+			$tracking->remaining_amount = abs((float) $invoice->total_ttc);
+			$tracking->reason = !empty($invoice->note_private) ? $invoice->note_private : $invoice->note_public;
+			$tracking->validation_status = 0;
+			$tracking->date_validation = null;
+			$tracking->fk_user_validator = null;
+			$tracking->use_status = 0;
+			$tracking->status = 0;
+			if ($tracking->create($user, 1) <= 0) {
+				$this->error = $tracking->error ?: 'Échec du rattachement de l’avoir Dolibarr à Agence.';
+				return -1;
+			}
+			return 1;
+		}
+
+		if ($invoiceLink) return 0;
+		$orderId = (!empty($invoice->origin) && $invoice->origin === 'commande' && !empty($invoice->origin_id)) ? (int) $invoice->origin_id : 0;
+		if ($orderId <= 0) {
+			$sql = 'SELECT fk_source FROM '.$this->db->prefix()."element_element WHERE sourcetype='commande' AND targettype='facture' AND fk_target=".(int) $invoice->id.' ORDER BY rowid DESC LIMIT 1';
+			$resql = $this->db->query($sql);
+			$row = $resql ? $this->db->fetch_object($resql) : null;
+			$orderId = $row ? (int) $row->fk_source : 0;
+		}
+		$source = null;
+		if ($orderId > 0) {
+			$sql = 'SELECT fk_agence,fk_caisse,fk_session,fk_das FROM '.$this->db->prefix().'sof_commande_link WHERE entity='.(int) $conf->entity.' AND fk_commande='.$orderId.' ORDER BY rowid DESC LIMIT 1';
+			$resql = $this->db->query($sql);
+			$source = $resql ? $this->db->fetch_object($resql) : null;
+		}
+		if (!$source) {
+			$sql = 'SELECT fk_agence_followup fk_agence,NULL fk_caisse,NULL fk_session,NULL fk_das FROM '.$this->db->prefix().'sof_tiers_credit_profile WHERE entity='.(int) $conf->entity.' AND fk_soc='.(int) $invoice->socid.' AND status=1 ORDER BY rowid DESC LIMIT 1';
+			$resql = $this->db->query($sql);
+			$source = $resql ? $this->db->fetch_object($resql) : null;
+		}
+		if (!$source || empty($source->fk_agence)) return 0;
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/soffacturelink.class.php';
+		$link = new SofFactureLink($this->db);
+		$link->entity = (int) $conf->entity;
+		$link->fk_facture = (int) $invoice->id;
+		$link->fk_soc = (int) $invoice->socid;
+		$link->fk_agence = (int) $source->fk_agence;
+		$link->fk_caisse = (int) $source->fk_caisse ?: null;
+		$link->fk_session = (int) $source->fk_session ?: null;
+		$link->fk_das = (int) $source->fk_das ?: null;
+		$link->source_type = $orderId > 0 ? 'commande' : 'customer_credit_profile';
+		$link->source_id = $orderId > 0 ? $orderId : (int) $invoice->socid;
+		$link->billing_status = 1;
+		$link->deferred_status = 0;
+		$link->accounting_status = 0;
+		if ($link->create($user, 1) <= 0) {
+			$this->error = $link->error ?: 'Échec du rattachement automatique de la facture à Agence.';
+			return -1;
+		}
+		return 1;
 	}
 
 	private function isTakeposInvoice($object)

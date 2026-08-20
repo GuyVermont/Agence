@@ -10,6 +10,7 @@ if (!$user->hasRight('agence', 'remboursement', 'request')) {
 	accessforbidden();
 }
 $engine = new SofAgenceOperations($db);
+$preselectedInvoiceId = (int) GETPOST('fk_facture_origin', 'int');
 if (GETPOST('action', 'alpha') === 'request') {
 	if (GETPOST('token') !== $_SESSION['newtoken']) {
 		accessforbidden('Invalid token');
@@ -46,7 +47,7 @@ print '<form method="POST"><input type="hidden" name="token" value="'.newToken()
 print '<tr><td class="titlefieldcreate fieldrequired">'.$langs->trans('CollectedInvoice').'</td><td><select class="flat minwidth500" name="fk_facture_origin" required><option value="">'.$langs->trans('Select').'</option>';
 while ($resql && ($row = $db->fetch_object($resql))) {
 	if ((float) $row->paid > 0) {
-		print '<option value="'.((int) $row->rowid).'">'.dol_escape_htmltag($row->ref.' - '.$row->nom.' - '.$langs->trans('CollectedAmount').' '.price($row->paid)).'</option>';
+		print '<option value="'.((int) $row->rowid).'"'.($preselectedInvoiceId === (int) $row->rowid ? ' selected' : '').'>'.dol_escape_htmltag($row->ref.' - '.$row->nom.' - '.$langs->trans('CollectedAmount').' '.price($row->paid)).'</option>';
 	}
 }
 print '</select></td></tr><tr><td class="fieldrequired">'.$langs->trans('RequestedAmount').'</td><td><input class="flat" type="number" min="0.01" step="0.01" name="requested_amount" required></td></tr>';

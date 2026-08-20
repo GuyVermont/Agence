@@ -2,6 +2,33 @@
 
 Toutes les évolutions significatives du module Agence sont consignées dans ce fichier.
 
+## [2.4.0] - 2026-08-20
+
+Version d’intégration métier native PowerERP/Dolibarr éditée par iPowerWorld.
+
+### Réutilisation et fluidité
+
+- remplacement des identifiants techniques par des listes lisibles pour les factures, avoirs, commandes, paiements, produits, contacts, comptes bancaires et objets Agence liés ;
+- sélections multiples pour les DAS, caissiers et modes de paiement autorisés ;
+- réutilisation automatique du client, de la référence, de la date, du montant, de l’agence, du DAS et des comptes présents dans les objets natifs ;
+- raccourcis contextuels depuis les fiches Dolibarr facture, avoir, commande, client et produit ;
+- rattachement guidé d’une facture ou commande existante à une agence et suggestion issue du profil client, des lignes produit et du périmètre utilisateur ;
+- sélection des justificatifs de paiement différé par référence métier, client, agence et montant disponible.
+
+### Avoirs et intégrité financière
+
+- suivi Agence créé automatiquement à la validation d’un avoir Dolibarr dont la facture d’origine est rattachée ;
+- garantie qu’un suivi Agence référence exactement un avoir natif, dans la même entité et pour le même client ;
+- blocage anticipé des doublons d’avoir, profils client et affectations produit/DAS ;
+- validation serveur commune à l’interface, aux API, aux imports et aux traitements métier ;
+- correction de la convergence entre le trigger d’avoir natif et le workflow de remboursement ;
+- correction des événements d’intégration d’encaissement et de transfert de caisse.
+
+### Qualification
+
+- scénario transactionnel dédié aux objets natifs et ajouté à la porte qualité locale ;
+- couverture du préremplissage, du suivi automatique, de l’unicité et de l’absence d’identifiant technique dans le parcours différé.
+
 ## [2.3.1] - 2026-08-20
 
 Version de normalisation des libellés et traductions éditée par iPowerWorld.
@@ -111,4 +138,5 @@ Version de référence initiale du dépôt public.
 [2.1.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.1.0
 [2.2.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.2.0
 [2.3.1]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.1
+[2.4.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.4.0
 [2.3.0]: https://github.com/GuyVermont/Agence/releases/tag/v2.3.0

@@ -39,10 +39,13 @@ if ($action === 'capture') {
 	foreach (array('LIQ', 'CB', 'CHQ', 'VIR', 'OM', 'MM') as $mode) {
 		$components[$mode] = GETPOST('pay_'.$mode, 'alpha');
 	}
+	$deferredSource = explode(':', (string) GETPOST('deferred_source', 'alphanohtml'), 2);
+	$deferredType = !empty($deferredSource[0]) ? $deferredSource[0] : 'other';
+	$deferredSourceId = !empty($deferredSource[1]) ? (int) $deferredSource[1] : 0;
 	$result = $engine->captureInvoicePayment($user, $sessionId, $invoiceId, $components, array(
 		'amount' => GETPOST('pay_DIFF', 'alpha'),
-		'source_type' => GETPOST('deferred_type', 'alpha'),
-		'source_id' => GETPOST('source_id', 'int'),
+		'source_type' => $deferredType,
+		'source_id' => $deferredSourceId,
 		'due_date' => GETPOST('due_date', 'alpha'),
 		'transaction_ref' => GETPOST('transaction_ref', 'alphanohtml'),
 	));
@@ -109,7 +112,26 @@ if (!$invoice) {
 	}
 	print '<tr><td><label for="transaction_ref">'.$langs->trans('TransactionRef').'</label></td><td><input id="transaction_ref" class="flat minwidth300" name="transaction_ref"></td></tr>';
 	print '<tr><td><label for="pay_DIFF">'.$langs->trans('DeferredShare').'</label></td><td><input id="pay_DIFF" class="flat" type="number" min="0" step="0.01" name="pay_DIFF" value="0"></td></tr>';
-	print '<tr><td><label for="deferred_type">'.$langs->trans('DeferredSupportingDocument').'</label></td><td><select id="deferred_type" name="deferred_type"><option value="boncommande">'.$langs->trans('CustomerPurchaseOrder').'</option><option value="bst">'.$langs->trans('BST').'</option><option value="instruction">'.$langs->trans('ManagerInstruction').'</option><option value="other">'.$langs->trans('Other').'</option></select> <label for="source_id">'.$langs->trans('SupportingDocumentId').'</label> <input id="source_id" class="flat width75" type="number" name="source_id"></td></tr>';
+	print '<tr><td><label for="deferred_source">'.$langs->trans('DeferredSupportingDocument').'</label></td><td><select id="deferred_source" class="flat minwidth500" name="deferred_source"><option value="other">'.$langs->trans('OtherDocumentNotRecorded').'</option>';
+	$sourceQueries = array(
+		'boncommande' => array('CustomerPurchaseOrder', 'sof_bon_commande_client', 'fk_soc', "status IN (1,3)", "CONCAT(ref,' — ',order_number)", 'remaining_amount'),
+		'bst' => array('BST', 'sof_bst', 'fk_soc_payer', 'status=1', "CONCAT(ref,' — ',bst_number)", 'estimated_amount'),
+		'instruction' => array('ManagerInstruction', 'sof_instruction_manageriale', 'fk_soc', 'status IN (1,2)', "CONCAT(ref,' — ',instruction_ref)", 'estimated_amount'),
+	);
+	foreach ($sourceQueries as $sourceType => $meta) {
+		$sqlSource = 'SELECT rowid,'.$meta[4].' display_ref,'.$meta[5].' display_amount FROM '.$db->prefix().$meta[1];
+		$sqlSource .= ' WHERE entity='.(int) $conf->entity.' AND '.$meta[2].'='.(int) $invoice->socid.' AND '.$meta[3];
+		$sqlSource .= ' AND (fk_agence IS NULL OR fk_agence='.(int) $cashSession->fk_agence.') ORDER BY rowid DESC'.$db->plimit(200, 0);
+		$resSource = $db->query($sqlSource);
+		if ($resSource && $db->num_rows($resSource) > 0) {
+			print '<optgroup label="'.dol_escape_htmltag($langs->trans($meta[0])).'">';
+			while ($source = $db->fetch_object($resSource)) {
+				print '<option value="'.dol_escape_htmltag($sourceType.':'.(int) $source->rowid).'">'.dol_escape_htmltag($source->display_ref.' — '.price(abs((float) $source->display_amount))).'</option>';
+			}
+			print '</optgroup>';
+		}
+	}
+	print '</select><div class="opacitymedium">'.$langs->trans('SupportingDocumentSelectionHelp').'</div></td></tr>';
 	print '<tr><td><label for="due_date">'.$langs->trans('PaymentDueDate').'</label></td><td><input id="due_date" class="flat" type="date" name="due_date"></td></tr>';
 	print '</table><div class="center"><button class="button button-save" type="submit">'.$langs->trans('ValidateCollection').'</button></div></form>';
 }

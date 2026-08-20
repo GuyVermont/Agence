@@ -632,6 +632,18 @@ class SofAgenceOperations
 			$totalReal += $amount;
 		}
 		$deferredAmount = price2num(isset($deferred['amount']) ? $deferred['amount'] : 0);
+		if ($deferredAmount > 0) {
+			$sourceError = $this->validateDeferredSource(
+				(string) (isset($deferred['source_type']) ? $deferred['source_type'] : 'other'),
+				!empty($deferred['source_id']) ? (int) $deferred['source_id'] : 0,
+				(int) $facture->socid,
+				(int) $session->fk_agence,
+				$deferredAmount
+			);
+			if ($sourceError !== '') {
+				return $this->fail($sourceError);
+			}
+		}
 		$total = $totalReal + $deferredAmount;
 		if (count($cleanComponents) > 1 && !$this->hasRight($user, 'mouvement', 'mixedpayment')) {
 			return $this->fail("Permission refusée pour l'encaissement mixte.");
@@ -771,11 +783,42 @@ class SofAgenceOperations
 		$this->recalculateSession((int) $session->id);
 		$this->updateRow('sof_caisse_session', (int) $session->id, array('status' => 2), $user);
 		$this->db->commit();
-		$this->emitIntegrationEvent('validation.decided', 'refund', (int) $refund->id, (int) $refund->fk_agence, array(
-			'ref' => $refund->ref, 'decision' => 'approve', 'final' => $pending === 0, 'approved_amount' => (float) $approvedAmount,
-			'subject' => 'Validation remboursement '.$refund->ref,
+		$this->emitIntegrationEvent('payment.completed', 'facture', (int) $facture->id, (int) $session->fk_agence, array(
+			'ref' => $facture->ref, 'fk_soc' => (int) $facture->socid, 'amount' => (float) $total,
+			'deferred_amount' => (float) $deferredAmount, 'subject' => 'Encaissement facture '.$facture->ref,
 		), $user);
 		return 1;
+	}
+
+	/** Validate a selected deferred-payment support document against the invoice context. */
+	private function validateDeferredSource($sourceType, $sourceId, $fkSoc, $fkAgence, $amount)
+	{
+		global $conf;
+		$sourceType = strtolower(trim((string) $sourceType));
+		if ($sourceType === 'other' && $sourceId <= 0) {
+			return '';
+		}
+		$map = array(
+			'boncommande' => array('sof_bon_commande_client', 'fk_soc', 'status IN (1,3)', 'remaining_amount'),
+			'bst' => array('sof_bst', 'fk_soc_payer', 'status=1', 'estimated_amount'),
+			'instruction' => array('sof_instruction_manageriale', 'fk_soc', 'status IN (1,2)', 'estimated_amount'),
+		);
+		if ($sourceId <= 0 || empty($map[$sourceType])) {
+			return 'Le justificatif du paiement différé est invalide.';
+		}
+		$meta = $map[$sourceType];
+		$sql = 'SELECT rowid,'.$meta[3].' available_amount FROM '.$this->db->prefix().$meta[0];
+		$sql .= ' WHERE entity='.(int) $conf->entity.' AND rowid='.(int) $sourceId.' AND '.$meta[1].'='.(int) $fkSoc.' AND '.$meta[2];
+		$sql .= ' AND (fk_agence IS NULL OR fk_agence='.(int) $fkAgence.')';
+		$resql = $this->db->query($sql);
+		$row = $resql ? $this->db->fetch_object($resql) : null;
+		if (!$row) {
+			return 'Le justificatif sélectionné ne correspond pas au client, à l’agence ou à un statut utilisable.';
+		}
+		if ((float) $row->available_amount > 0 && (float) $amount > (float) $row->available_amount + 0.01) {
+			return 'La part différée dépasse le montant disponible sur le justificatif sélectionné.';
+		}
+		return '';
 	}
 
 	/** Create and immediately collect a native Dolibarr customer deposit invoice. */
@@ -1936,9 +1979,10 @@ class SofAgenceOperations
 		}
 		$this->recalculateSession((int) $session->rowid);
 		$this->db->commit();
-		$this->emitIntegrationEvent('bank_deposit.completed', 'deposit', (int) $deposit->id, (int) $deposit->fk_agence, array(
-			'ref' => $deposit->ref, 'stage' => 'executed', 'amount' => (float) $deposit->amount,
-			'fk_bank_account' => (int) $deposit->fk_bank_account, 'subject' => 'Dépôt bancaire exécuté '.$deposit->ref,
+		$this->emitIntegrationEvent('cash_transfer.sent', 'transfer', (int) $transfer->id, (int) $transfer->fk_agence, array(
+			'ref' => $transfer->ref, 'stage' => 'sent', 'amount' => (float) $transfer->amount,
+			'fk_caisse_source' => (int) $transfer->fk_caisse_source, 'fk_caisse_dest' => (int) $transfer->fk_caisse_dest,
+			'subject' => 'Transfert de caisse expédié '.$transfer->ref,
 		), $user);
 		return 1;
 	}
@@ -1983,9 +2027,10 @@ class SofAgenceOperations
 			$this->recalculateSession((int) $destinationSession->rowid);
 		}
 		$this->db->commit();
-		$this->emitIntegrationEvent('bank_deposit.completed', 'deposit', (int) $deposit->id, (int) $deposit->fk_agence, array(
-			'ref' => $deposit->ref, 'stage' => 'reconciled', 'amount' => (float) $deposit->amount,
-			'fk_bank' => (int) $bankLineId, 'reconcile_reference' => trim((string) $reference), 'subject' => 'Dépôt bancaire rapproché '.$deposit->ref,
+		$this->emitIntegrationEvent('cash_transfer.received', 'transfer', (int) $transfer->id, (int) $transfer->fk_agence, array(
+			'ref' => $transfer->ref, 'stage' => 'received', 'amount' => (float) $transfer->amount,
+			'fk_caisse_source' => (int) $transfer->fk_caisse_source, 'fk_caisse_dest' => (int) $transfer->fk_caisse_dest,
+			'subject' => 'Transfert de caisse réceptionné '.$transfer->ref,
 		), $user);
 		return 1;
 	}
@@ -2559,8 +2604,16 @@ class SofAgenceOperations
 		global $conf;
 		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofavoirtracking.class.php';
 		$tracking = new SofAvoirTracking($this->db);
+		$sql = 'SELECT rowid FROM '.$this->db->prefix().'sof_avoir_tracking WHERE entity='.(int) $conf->entity.' AND fk_facture_avoir='.(int) $creditNoteId.' LIMIT 1';
+		$resql = $this->db->query($sql);
+		$existing = $resql ? $this->db->fetch_object($resql) : null;
+		if ($existing && $tracking->fetch((int) $existing->rowid) <= 0) {
+			return $this->fail("Échec de lecture du suivi d'avoir automatiquement créé.");
+		}
 		$tracking->entity = (int) $conf->entity;
-		$tracking->ref = $this->generateRef('AVO', 'sof_avoir_tracking');
+		if (!$existing) {
+			$tracking->ref = $this->generateRef('AVO', 'sof_avoir_tracking');
+		}
 		$tracking->fk_facture_avoir = (int) $creditNoteId;
 		$tracking->fk_facture_origin = (int) $refund->fk_facture_origin;
 		$tracking->fk_soc = (int) $refund->fk_soc;
@@ -2578,7 +2631,8 @@ class SofAgenceOperations
 		$tracking->date_last_use = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? null : dol_now();
 		$tracking->fk_user_last_use = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? null : (int) $user->id;
 		$tracking->status = strtoupper((string) $refund->payment_mode) === 'AVOIR' ? 1 : 2;
-		$id = $tracking->create($user);
+		$id = $existing ? $tracking->update($user, 1) : $tracking->create($user);
+		if ($existing && $id > 0) $id = (int) $existing->rowid;
 		return $id > 0 ? $id : $this->fail($tracking->error ?: "Échec du suivi d'avoir.", $tracking->errors);
 	}
 

@@ -36,6 +36,7 @@ $tests = @(
 	'install_upgrade_check.php',
 	'quick_check.php',
 	'operational_check.php',
+	'native_reuse_check.php',
 	'lifecycle_qualification_check.php',
 	'industrial_operations_check.php',
 	'integration_ecosystem_check.php',

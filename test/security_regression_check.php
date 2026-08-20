@@ -125,7 +125,7 @@ agence_security_assert($invalidSecretRejected, 'setup validator rejects control 
 
 $source = file_get_contents(DOL_DOCUMENT_ROOT.'/custom/agence/lib/agence_crud.lib.php');
 $updateStart = strpos($source, "if (\$action === 'update' && \$id > 0)");
-$fillAfterFetch = $updateStart === false ? false : strpos($source, 'agence_fill_object_from_post($object);', $updateStart);
+$fillAfterFetch = $updateStart === false ? false : strpos($source, 'agence_fill_object_from_post($object, $key, false);', $updateStart);
 $enforceAfterFill = $fillAfterFetch === false ? false : strpos($source, 'agence_enforce_object_scope($object);', $fillAfterFetch);
 $updateCall = $fillAfterFetch === false ? false : strpos($source, '$object->update($user)', $fillAfterFetch);
 agence_security_assert(

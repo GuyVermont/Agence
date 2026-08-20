@@ -987,6 +987,34 @@ Warning=Warning
 Workflow=Workflow
 Yes=Yes
 
+# Reuse of native PowerERP / Dolibarr business objects
+NativeObjectUnavailableForEntity=The selected PowerERP item is missing, inactive, or belongs to another entity.
+SelectedDocumentMustBeCreditNote=The selected document must be a PowerERP/Dolibarr customer credit note.
+CreditNoteAlreadyTracked=This PowerERP/Dolibarr credit note is already tracked in Agence.
+CustomerCreditProfileAlreadyExists=This customer already has an Agence credit profile.
+ProductDASMappingAlreadyExists=This product or service is already assigned to this business area for this scope.
+NativeDocumentThirdPartyMismatch=The selected invoice or order does not belong to the specified customer.
+SelectedContactThirdPartyMismatch=The selected contact does not belong to the specified customer.
+NativeSelectorUnavailable=The PowerERP/Dolibarr list is unavailable. Check the schema and access rights.
+SelectExistingNativeObject=Select an existing PowerERP/Dolibarr item
+MultipleSelectionHelp=Hold Ctrl (Windows) or Cmd (macOS) to select multiple values.
+OtherDocumentNotRecorded=Other supporting document not recorded in PowerERP
+SupportingDocumentSelectionHelp=Suggested documents match the customer, agency, and an eligible status.
+AgencyCreditProfile=Agence credit profile
+AgencyDASMappings=Agency / business-area assignments
+ViewAgencyCreditNoteFollowup=View credit-note follow-up
+TrackNativeCreditNote=Track this credit note in Agence
+RequestRefundFromInvoice=Request a refund
+ManageAgencyAttachment=Manage agency attachment
+ConfigureCustomerCreditProfile=Configure customer credit
+ViewCustomerCreditProfile=View customer credit profile
+AssignProductToDAS=Assign this product or service to a business area
+NativeAttachmentIntro=This attachment enriches the existing PowerERP/Dolibarr document. It does not create a copy or duplicate of the native document.
+NativeAttachmentSaved=The PowerERP/Dolibarr document is now attached to the Agence context.
+AgencyOutOfScope=The selected agency is outside your authorized scope.
+AgencyRequired=An agency must be selected.
+LegacyOrExternalValue=Legacy or external value
+
 # Dashboard and module overview details
 DomainAgencyManagement=Agency management
 DomainAgencyManagementDesc=Structure, managers, business areas, limits, accounts and scopes.

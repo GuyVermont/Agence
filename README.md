@@ -1,6 +1,6 @@
 # Module Dolibarr `agence`
 
-Module PowerERP édité par **iPowerWorld** pour piloter les agences, DAS, caisses et flux financiers dans Dolibarr. La version 2.3 réunit les fonctions auparavant portées par `sofops`, les parcours financiers qualifiés, l’exploitation industrielle et les contrats d’intégration PowerERP dans le module unique `agence`.
+Module PowerERP édité par **iPowerWorld** pour piloter les agences, DAS, caisses et flux financiers dans Dolibarr. La version 2.4 réunit les fonctions auparavant portées par `sofops`, les parcours financiers qualifiés, l’exploitation industrielle, les contrats d’intégration PowerERP et la réutilisation systématique des objets métier natifs dans le module unique `agence`.
 
 ## Positionnement
 
@@ -34,6 +34,11 @@ Le module `sofops` doit rester desactive afin d'eviter le doublonnage des menus,
 - événements configurables dans le module Notification natif de Dolibarr ;
 - connecteurs synchronisables pour banques, Orange Money et Mobile Money, avec secrets chiffrés ;
 - transport contrôlé de configuration développement/recette/production, avec empreinte et sans secrets.
+- sélecteurs lisibles des factures, avoirs, commandes, paiements, produits, contacts et comptes déjà présents dans PowerERP/Dolibarr ;
+- préremplissage serveur des clients, références, montants, dates, agences et DAS depuis les documents natifs ;
+- suivi automatique des avoirs Dolibarr reliés à une facture Agence et prévention des doubles suivis ;
+- raccourcis Agence sur les fiches natives facture, avoir, commande, client et produit ;
+- sélection métier des justificatifs de paiement différé, sans saisie d’identifiant technique.
 
 ## Installation locale
 

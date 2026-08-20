@@ -243,6 +243,9 @@ abstract class SofCommonObject extends CommonObject
 			return -1;
 		}
 		$this->entity = (int) $conf->entity;
+		if ($this->validateAndReuseNativeObjects(true) < 0) {
+			return -1;
+		}
 		if ($this->validateAgencyCashDeskDasRelations() < 0) {
 			return -1;
 		}
@@ -279,10 +282,31 @@ abstract class SofCommonObject extends CommonObject
 			$this->error = 'Mise à jour inter-entité interdite.';
 			return -1;
 		}
+		if ($this->validateAndReuseNativeObjects(false) < 0) {
+			return -1;
+		}
 		if ($this->validateAgencyCashDeskDasRelations() < 0) {
 			return -1;
 		}
 		return $this->updateCommon($user, $notrigger);
+	}
+
+	/** Validate native Dolibarr references for every write entry point, including API/imports. */
+	protected function validateAndReuseNativeObjects($creating)
+	{
+		require_once DOL_DOCUMENT_ROOT.'/custom/agence/class/sofnativeintegrationservice.class.php';
+		$keys = array(
+			'sof_avoir_tracking'=>'avoir', 'sof_bon_commande_client'=>'boncommande',
+			'sof_bst'=>'bst', 'sof_instruction_manageriale'=>'instruction',
+			'sof_product_das'=>'productdas', 'sof_tiers_credit_profile'=>'tierscredit',
+		);
+		$service = new SofNativeIntegrationService($this->db);
+		if ($service->synchronize(isset($keys[$this->table_element]) ? $keys[$this->table_element] : '', $this, (bool) $creating) < 0) {
+			$this->error = $service->error;
+			$this->errors = $service->errors;
+			return -1;
+		}
+		return 1;
 	}
 
 	/**
